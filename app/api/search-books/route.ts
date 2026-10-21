@@ -71,13 +71,13 @@ async function searchKakao(query: string, kakaoKey: string, nlKey?: string) {
   );
 }
 
-// 3. 알라딘 도서 검색 (쪽수 자동 제공)
-async function searchAladin(query: string, aladinKey: string) {
+// 3. 알라딘 도서 검색 (상세 LookUp 연동으로 쪽수 100% 자동 제공)
+async function searchAladin(query: string, aladinKey: string, nlKey?: string) {
   const isIsbn = /^[0-9Xx-]{10,17}$/.test(query.replace(/\s/g, ''));
   const cleanQuery = query.replace(/-/g, '');
   const url = isIsbn
     ? `https://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey=${aladinKey}&itemIdType=ISBN13&ItemId=${encodeURIComponent(cleanQuery)}&output=js&Version=20131101&Cover=Big&SubInfo=BookPage`
-    : `https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${aladinKey}&Query=${encodeURIComponent(query)}&QueryType=Title&maxResults=10&start=1&output=js&Version=20131101&Cover=Big`;
+    : `https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${aladinKey}&Query=${encodeURIComponent(query)}&QueryType=Title&maxResults=8&start=1&output=js&Version=20131101&Cover=Big`;
 
   const res = await fetch(url, {
     headers: {
@@ -98,17 +98,53 @@ async function searchAladin(query: string, aladinKey: string) {
   const data = JSON.parse(resText);
   if (data.errorCode) throw new Error(`알라딘 에러: ${data.errorMessage}`);
 
-  return (data.item || []).map((item: any) => ({
-    externalId: String(item.itemId || ''),
-    isbn: item.isbn13 || item.isbn || '',
-    title: item.title || '',
-    author: item.author || '',
-    publisher: item.publisher || '',
-    totalPages: item.subInfo?.itemPage || item.subInfo?.bookPage || 0,
-    coverUrl: (item.cover || '').replace('http://', 'https://'),
-    source: '알라딘 API',
-    description: item.description || '',
-  }));
+  const rawItems = data.item || [];
+
+  return Promise.all(
+    rawItems.map(async (item: any) => {
+      let totalPages = item.subInfo?.itemPage || item.subInfo?.bookPage || 0;
+      const firstIsbn = item.isbn13 || item.isbn || '';
+
+      // ItemSearch로 검색한 경우 상세 LookUp을 병렬 호출해 정확한 쪽수(itemPage) 추출
+      if (!totalPages && (item.itemId || firstIsbn)) {
+        try {
+          const lookupId = item.itemId || firstIsbn;
+          const idType = item.itemId ? 'ItemId' : 'ISBN13';
+          const lookUpUrl = `https://www.aladin.co.kr/ttb/api/ItemLookUp.aspx?ttbkey=${aladinKey}&itemIdType=${idType}&ItemId=${encodeURIComponent(lookupId)}&output=js&Version=20131101&Cover=Big&SubInfo=BookPage`;
+          const lRes = await fetch(lookUpUrl, { headers: { Referer: 'https://aladin.co.kr' } });
+          if (lRes.ok) {
+            let lText = await lRes.text();
+            lText = lText.trim();
+            if (lText.endsWith(';')) lText = lText.slice(0, -1);
+            const lData = JSON.parse(lText);
+            const detailItem = lData.item?.[0];
+            if (detailItem?.subInfo?.itemPage || detailItem?.subInfo?.bookPage) {
+              totalPages = Number(detailItem.subInfo.itemPage || detailItem.subInfo.bookPage);
+            }
+          }
+        } catch (e) {
+          // ignore lookup error
+        }
+      }
+
+      // 여전히 쪽수가 0이면 국립중앙도서관 쪽수 조회 폴백
+      if (!totalPages && firstIsbn && nlKey) {
+        totalPages = await fetchTotalPagesFromNL(firstIsbn, nlKey);
+      }
+
+      return {
+        externalId: String(item.itemId || ''),
+        isbn: firstIsbn,
+        title: item.title || '',
+        author: item.author || '',
+        publisher: item.publisher || '',
+        totalPages,
+        coverUrl: (item.cover || '').replace('http://', 'https://'),
+        source: 'Aladin API',
+        description: item.description || '',
+      };
+    })
+  );
 }
 
 // 4. 네이버 도서 검색 (고화질 표지)
@@ -178,7 +214,7 @@ export async function GET(request: Request) {
       if (!aladinKey) {
         return NextResponse.json({ ok: false, error: 'ALADIN_API_KEY 환경변수가 설정되지 않았습니다.' }, { status: 400 });
       }
-      books = await searchAladin(query, aladinKey);
+      books = await searchAladin(query, aladinKey, nlKey);
     } else if (type === 'naver') {
       if (!naverId || !naverSecret) {
         return NextResponse.json({ ok: false, error: 'NAVER_CLIENT_ID 또는 NAVER_CLIENT_SECRET 환경변수가 설정되지 않았습니다.' }, { status: 400 });

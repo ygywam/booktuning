@@ -6,8 +6,8 @@ import { Book, TimelineItem, User } from '../lib/types';
 export default function Home() {
   // 1. 유저 및 세션 상태
   const [user, setUser] = useState<User | null>(null);
-  const [nickname, setNickname] = useState('조용희');
-  const [pin, setPin] = useState('0000');
+  const [nickname, setNickname] = useState('');
+  const [pin, setPin] = useState('');
   const [theme, setTheme] = useState('theme-base');
 
   // 2. 도서 서재 상태 (기본: 커뮤니티 전체)
@@ -64,6 +64,8 @@ export default function Home() {
   const [manualPages, setManualPages] = useState<number | ''>('');
   const [manualDesc, setManualDesc] = useState('');
   const [manualCover, setManualCover] = useState('');
+  const [manualIsbn, setManualIsbn] = useState('');
+  const [manualSource, setManualSource] = useState('수동 직접 등록');
 
   // 7. 초기화 로드
   useEffect(() => {
@@ -78,17 +80,18 @@ export default function Home() {
     setReadDate(today);
 
     const savedUserStr = localStorage.getItem('app_user');
+    const savedNickname = localStorage.getItem('app_nickname');
     if (savedUserStr) {
       try {
         const parsed = JSON.parse(savedUserStr);
         setUser(parsed);
-        setNickname(parsed.nickname || '조용희');
-        setPin(parsed.pin || '0000');
+        setNickname(parsed.nickname || savedNickname || '');
+        setPin(parsed.pin || '');
       } catch (e) {
-        setNickname('조용희');
+        if (savedNickname) setNickname(savedNickname);
       }
-    } else {
-      setNickname('조용희');
+    } else if (savedNickname) {
+      setNickname(savedNickname);
     }
 
     fetchBooks();
@@ -168,29 +171,29 @@ export default function Home() {
     }
   };
 
-  const handleRegisterBook = async (book: any) => {
-    try {
-      const res = await fetch('/api/books', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...book,
-          nickname,
-          userId: user?.id,
-        }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        alert(`[${book.title}] 도서가 서재에 등록되었습니다! ✨`);
-        setSearchResults([]);
-        setSearchQuery('');
-        fetchBooks();
-      } else {
-        alert(`등록 실패: ${data.error}`);
-      }
-    } catch (err) {
-      alert('도서 등록 중 오류가 발생했습니다.');
-    }
+  // 검색 결과 선택 시 확인 및 등록 폼 열기
+  const handleSelectSearchResult = (book: any) => {
+    setManualTitle(book.title || '');
+    setManualAuthor(book.author || '');
+    setManualPublisher(book.publisher || '');
+    setManualPages(book.totalPages > 0 ? book.totalPages : '');
+    setManualDesc(book.description || '');
+    setManualCover(book.coverUrl || '');
+    setManualIsbn(book.isbn || '');
+    setManualSource(book.source || (searchApiType === 'aladin' ? 'Aladin API' : searchApiType === 'kakao' ? 'Kakao API' : 'Naver API'));
+    setShowManualBookModal(true);
+  };
+
+  const handleOpenManualBook = () => {
+    setManualTitle('');
+    setManualAuthor('');
+    setManualPublisher('');
+    setManualPages('');
+    setManualDesc('');
+    setManualCover('');
+    setManualIsbn('');
+    setManualSource('수동 직접 등록');
+    setShowManualBookModal(true);
   };
 
   const handleSubmitManualBook = async (e: React.FormEvent) => {
@@ -206,28 +209,34 @@ export default function Home() {
           author: manualAuthor.trim() || '미상',
           publisher: manualPublisher.trim() || '',
           totalPages: Number(manualPages) || 0,
-          description: manualDesc.trim() || '직접 등록한 도서입니다.',
+          description: manualDesc.trim() || '등록된 도서입니다.',
           coverUrl: manualCover.trim(),
-          nickname,
+          isbn: manualIsbn.trim(),
+          source: manualSource.trim() || '수동 직접 등록',
+          nickname: nickname.trim() || '독서가',
           userId: user?.id,
         }),
       });
       const data = await res.json();
       if (data.ok) {
-        alert('도서가 성공적으로 등록되었습니다!');
+        alert(`[${manualTitle.trim()}] 도서가 서재에 안전하게 등록되었습니다! ✨`);
         setShowManualBookModal(false);
+        setSearchResults([]);
+        setSearchQuery('');
         setManualTitle('');
         setManualAuthor('');
         setManualPublisher('');
         setManualPages('');
         setManualDesc('');
         setManualCover('');
+        setManualIsbn('');
+        setManualSource('수동 직접 등록');
         fetchBooks();
       } else {
         alert(`등록 실패: ${data.error}`);
       }
     } catch (err) {
-      alert('도서 수동 등록 실패');
+      alert('도서 등록 중 오류가 발생했습니다.');
     }
   };
 
@@ -606,7 +615,7 @@ export default function Home() {
       {/* 1. 상단 헤더 (아이콘 + v4.3 표기) */}
       <header className="app-header">
         <div>
-          <p className="eyebrow">{nickname}님의 독서기록 v4.3 👑</p>
+          <p className="eyebrow">{nickname ? `${nickname}님의 독서기록 v4.3 👑` : '북튜닝 독서기록 서재 v4.3 👑'}</p>
           <div className="app-title-row">
             <img src="/icon.svg" className="app-logo-icon" alt="북튜닝 로고" />
             <h1>북튜닝 (Book Tuning)</h1>
@@ -645,15 +654,7 @@ export default function Home() {
           <button
             className="ghost-button"
             style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
-            onClick={() => {
-              setManualTitle('');
-              setManualAuthor('');
-              setManualPublisher('');
-              setManualPages('');
-              setManualDesc('');
-              setManualCover('');
-              setShowManualBookModal(true);
-            }}
+            onClick={handleOpenManualBook}
           >
             ✍️ 직접 등록
           </button>
@@ -662,7 +663,7 @@ export default function Home() {
         <div className="search-row">
           <input
             type="text"
-            placeholder="예: 나의 돈키호테 또는 979..."
+            placeholder="예: 나는 감이 아니라 또는 979..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -687,11 +688,11 @@ export default function Home() {
                   <p className="font-bold text-sm truncate">{book.title}</p>
                   <p className="text-xs text-stone-500 truncate">{book.author} | {book.publisher}</p>
                   <p className="text-xs text-amber-800 font-semibold mt-1">
-                    {book.totalPages > 0 ? `📖 총 ${book.totalPages}쪽` : '📄 쪽수 미정 (수동 입력 가능)'}
+                    {book.totalPages > 0 ? `📖 총 ${book.totalPages}쪽` : '📄 쪽수 미정 (확인 후 입력)'}
                   </p>
                 </div>
-                <button className="text-xs py-2 px-3" onClick={() => handleRegisterBook(book)}>
-                  선택 등록
+                <button className="text-xs py-2 px-3" onClick={() => handleSelectSearchResult(book)}>
+                  선택
                 </button>
               </div>
             ))}
@@ -878,10 +879,10 @@ export default function Home() {
         )}
       </section>
 
-      {/* 4. 노션 데이터베이스 열기 알약 버튼 (이미지 2 복원) */}
+      {/* 4. 노션 데이터베이스 열기 알약 버튼 */}
       <div className="notion-outlink-container">
         <a
-          href="https://www.notion.so/33f9a4211895829a9cdf017dc886e012"
+          href="https://app.notion.com/p/record-tuner/3699a4211895805181aed93dbd6ca10a"
           target="_blank"
           rel="noopener noreferrer"
           className="notion-outlink-btn"
@@ -918,7 +919,7 @@ export default function Home() {
               <label>활동할 닉네임
                 <input
                   type="text"
-                  placeholder="예: 조용희, 최정윤, 김진수, 오태훈..."
+                  placeholder="활동할 닉네임을 입력하세요 (예: 책벌레)"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   required
@@ -928,43 +929,127 @@ export default function Home() {
                 <input
                   type="password"
                   maxLength={4}
-                  placeholder="예: 0000 (동명이인 방지 및 본인 인증)"
+                  inputMode="numeric"
+                  placeholder="숫자 4자리 비밀번호 입력"
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
                   required
                 />
               </label>
               <p className="text-xs text-stone-500">
-                ※ 새로운 닉네임이면 노션 사용자 DB에 자동으로 새 사용자 페이지가 생성되어 개인 독서 기록이 연결됩니다.
+                ※ 동명이인 구분 및 본인 인증을 위해 사용됩니다. 기존 사용자는 노션에 등록된 4자리 PIN을 입력하세요.
               </p>
               <div className="text-right mt-4">
-                <button type="submit" className="w-full py-3">서재 입장하기</button>
+                <button type="submit" className="w-full py-3 font-bold">서재 입장하기</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* 2. 도서 직접 등록 모달 */}
+      {/* 2. 도서 확인 및 등록 모달 (검색 결과 선택 및 수동 등록 공용) */}
       {showManualBookModal && (
         <div className="modal">
           <div className="modal-backdrop" onClick={() => setShowManualBookModal(false)}></div>
-          <div className="modal-card">
+          <div className="modal-card" style={{ maxWidth: '600px' }}>
             <div className="section-title-row">
               <div>
-                <h2>도서 직접 수동 등록</h2>
-                <p className="subtitle">검색되지 않는 독립출판물이나 전자책을 직접 등록합니다.</p>
+                <h2>도서 정보 확인 및 등록</h2>
+                <p className="subtitle">검색 결과를 확인하거나 정보를 직접 입력한 뒤 저장합니다.</p>
               </div>
               <button className="ghost-button" onClick={() => setShowManualBookModal(false)}>닫기</button>
             </div>
             <form onSubmit={handleSubmitManualBook} className="space-y-3">
-              <label>도서명 (필수)<input type="text" value={manualTitle} onChange={(e) => setManualTitle(e.target.value)} required /></label>
-              <label>저자<input type="text" value={manualAuthor} onChange={(e) => setManualAuthor(e.target.value)} /></label>
-              <label>출판사<input type="text" value={manualPublisher} onChange={(e) => setManualPublisher(e.target.value)} /></label>
-              <label>전체 페이지수<input type="number" min="0" value={manualPages} onChange={(e) => setManualPages(Number(e.target.value))} placeholder="예: 320" /></label>
-              <label>표지 이미지 URL (선택)<input type="url" value={manualCover} onChange={(e) => setManualCover(e.target.value)} placeholder="https://..." /></label>
-              <label>책 소개<textarea rows={3} value={manualDesc} onChange={(e) => setManualDesc(e.target.value)}></textarea></label>
-              <div className="text-right mt-4"><button type="submit">서재에 등록하기</button></div>
+              {manualCover && (
+                <div className="flex gap-4 items-center p-3 bg-amber-50 rounded-xl border border-amber-200">
+                  <img src={manualCover} alt="표지 미리보기" className="w-16 h-22 object-cover rounded shadow-sm" />
+                  <div className="text-xs text-stone-600">
+                    <p className="font-bold text-amber-900 mb-1">📖 표지 미리보기</p>
+                    <p className="truncate max-w-xs">{manualCover}</p>
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label>도서 커버이미지 URL
+                  <input
+                    type="url"
+                    value={manualCover}
+                    onChange={(e) => setManualCover(e.target.value)}
+                    placeholder="https://..."
+                  />
+                </label>
+                <label>ISBN
+                  <input
+                    type="text"
+                    value={manualIsbn}
+                    onChange={(e) => setManualIsbn(e.target.value)}
+                    placeholder="예: 97911..."
+                  />
+                </label>
+              </div>
+
+              <label>도서명 (필수)
+                <input
+                  type="text"
+                  value={manualTitle}
+                  onChange={(e) => setManualTitle(e.target.value)}
+                  placeholder="도서명을 입력하세요"
+                  required
+                />
+              </label>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label>저자
+                  <input
+                    type="text"
+                    value={manualAuthor}
+                    onChange={(e) => setManualAuthor(e.target.value)}
+                    placeholder="저자명"
+                  />
+                </label>
+                <label>출판사
+                  <input
+                    type="text"
+                    value={manualPublisher}
+                    onChange={(e) => setManualPublisher(e.target.value)}
+                    placeholder="출판사명"
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label>전체 페이지수 (쪽)
+                  <input
+                    type="number"
+                    min="0"
+                    value={manualPages}
+                    onChange={(e) => setManualPages(e.target.value ? Number(e.target.value) : '')}
+                    placeholder="예: 272"
+                    required
+                  />
+                </label>
+                <label>검색 출처
+                  <input
+                    type="text"
+                    value={manualSource}
+                    onChange={(e) => setManualSource(e.target.value)}
+                    placeholder="예: Aladin API"
+                  />
+                </label>
+              </div>
+
+              <label>책 소개 / 메모
+                <textarea
+                  rows={3}
+                  value={manualDesc}
+                  onChange={(e) => setManualDesc(e.target.value)}
+                  placeholder="도서 소개나 간단한 메모를 입력하세요"
+                ></textarea>
+              </label>
+
+              <div className="text-right mt-4 pt-3 border-t">
+                <button type="submit" className="w-full py-3 font-bold">도서 서재에 등록</button>
+              </div>
             </form>
           </div>
         </div>
@@ -1232,6 +1317,21 @@ export default function Home() {
               </p>
               <button className="w-full text-xs py-2 bg-stone-700" onClick={handleMigrateOldData}>
                 기존 데이터 자동 마이그레이션 실행
+              </button>
+            </div>
+
+            <div className="pt-4 border-t">
+              <button
+                type="button"
+                className="w-full py-3 font-bold"
+                onClick={() => {
+                  localStorage.setItem('app_theme', theme);
+                  localStorage.setItem('search_api_type', searchApiType);
+                  alert('✅ 설정이 안전하게 저장되었습니다.');
+                  setShowSettingsModal(false);
+                }}
+              >
+                설정 저장
               </button>
             </div>
           </div>
