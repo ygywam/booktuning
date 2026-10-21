@@ -84,16 +84,19 @@ export async function GET() {
         : [];
       const likesCount = props['공감수']?.number ?? likedUsers.length;
 
+      // 사용자 relation 유연 조회 (사용자 또는 [북튜닝] 사용자 DB)
+      const userRel = props['사용자']?.relation || props['[북튜닝] 사용자 DB']?.relation || [];
+
       return {
         bookId: page.id,
         notionPageId: page.id,
-        title: props['*책 제목']?.title[0]?.plain_text || '제목 없음',
+        title: props['*책 제목']?.title[0]?.plain_text || props['책 제목']?.title[0]?.plain_text || '제목 없음',
         author: props['저자']?.rich_text[0]?.plain_text || '미상',
         publisher: props['출판사']?.rich_text[0]?.plain_text || '',
         totalPages,
         description: props['책소개']?.rich_text[0]?.plain_text || '',
         nickname: props['기록자']?.rich_text[0]?.plain_text || '익명',
-        userId: props['사용자']?.relation?.[0]?.id || '',
+        userId: userRel[0]?.id || '',
         coverUrl: page.cover?.external?.url || props['표지']?.files[0]?.external?.url || '',
         likes: likesCount,
         likedUsers,
@@ -138,9 +141,8 @@ export async function POST(request: Request) {
       payload.properties['기록자'] = { rich_text: [{ text: { content: book.nickname } }] };
     }
 
-    // 사용자 DB Relation 연결 (사용자 ID가 제공된 경우)
     if (book.userId) {
-      payload.properties['사용자'] = { relation: [{ id: book.userId }] };
+      payload.properties['[북튜닝] 사용자 DB'] = { relation: [{ id: book.userId }] };
     }
 
     if (book.coverUrl && String(book.coverUrl).startsWith('http')) {
@@ -152,10 +154,16 @@ export async function POST(request: Request) {
     try {
       response = await notion.pages.create(payload);
     } catch (createErr: any) {
-      // 사용자(relation) 프로퍼티가 아직 노션 DB에 생성되지 않았을 때의 안전한 폴백
-      if (payload.properties['사용자']) {
-        delete payload.properties['사용자'];
-        response = await notion.pages.create(payload);
+      // '[북튜닝] 사용자 DB'가 아니라 '사용자'일 경우 재시도
+      if (payload.properties['[북튜닝] 사용자 DB']) {
+        delete payload.properties['[북튜닝] 사용자 DB'];
+        payload.properties['사용자'] = { relation: [{ id: book.userId }] };
+        try {
+          response = await notion.pages.create(payload);
+        } catch (e) {
+          delete payload.properties['사용자'];
+          response = await notion.pages.create(payload);
+        }
       } else {
         throw createErr;
       }

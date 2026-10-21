@@ -1,19 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Book, TimelineItem, User } from '../lib/types';
 
 export default function Home() {
   // 1. 유저 및 세션 상태
   const [user, setUser] = useState<User | null>(null);
-  const [nickname, setNickname] = useState('기록조율사');
+  const [nickname, setNickname] = useState('조용희');
   const [pin, setPin] = useState('0000');
   const [theme, setTheme] = useState('theme-base');
 
-  // 2. 도서 서재 상태
+  // 2. 도서 서재 상태 (기본 탭: 커뮤니티 전체 'all'로 설정하여 모든 기록이 즉시 보이도록)
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'my' | 'all' | 'rank'>('my');
+  const [activeTab, setActiveTab] = useState<'all' | 'my' | 'rank'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'reading' | 'done'>('all');
   const [sortBy, setSortBy] = useState<'latest' | 'progress' | 'title' | 'likes'>('latest');
 
@@ -72,42 +72,36 @@ export default function Home() {
 
   // 7. 초기화 로드
   useEffect(() => {
-    // 테마 복원
     const savedTheme = localStorage.getItem('app_theme') || 'theme-base';
     setTheme(savedTheme);
     document.body.className = savedTheme;
 
-    // 오늘 날짜 설정
     const today = new Date().toISOString().split('T')[0];
     setReadDate(today);
 
-    // 저장된 유저 세션 확인
     const savedUserStr = localStorage.getItem('app_user');
     if (savedUserStr) {
       try {
         const parsed = JSON.parse(savedUserStr);
         setUser(parsed);
-        setNickname(parsed.nickname);
+        setNickname(parsed.nickname || '조용희');
         setPin(parsed.pin || '0000');
       } catch (e) {
-        setNickname('기록조율사');
+        setNickname('조용희');
       }
     } else {
-      // 최초 방문 시 로그인 모달 권장
-      setShowLoginModal(true);
+      setNickname('조용희');
     }
 
     fetchBooks();
   }, []);
 
-  // 테마 변경
   const changeTheme = (newTheme: string) => {
     setTheme(newTheme);
     document.body.className = newTheme;
     localStorage.setItem('app_theme', newTheme);
   };
 
-  // 도서 목록 불러오기
   const fetchBooks = async () => {
     setLoading(true);
     try {
@@ -142,7 +136,7 @@ export default function Home() {
         localStorage.setItem('app_user', JSON.stringify(data.user));
         localStorage.setItem('app_nickname', data.user.nickname);
         setShowLoginModal(false);
-        alert(`반갑습니다, ${data.user.nickname}님! 북튜닝 서재에 오신 것을 환영합니다. 📚`);
+        alert(`반갑습니다, ${data.user.nickname}님! 북튜닝 서재에 입장하셨습니다. 📚`);
         fetchBooks();
       } else {
         alert(data.error || '로그인에 실패했습니다.');
@@ -171,7 +165,6 @@ export default function Home() {
     }
   };
 
-  // 검색된 도서 등록
   const handleRegisterBook = async (book: any) => {
     try {
       const res = await fetch('/api/books', {
@@ -197,7 +190,6 @@ export default function Home() {
     }
   };
 
-  // 도서 직접(수동) 등록 제출
   const handleSubmitManualBook = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualTitle.trim()) return alert('도서명을 입력해 주세요.');
@@ -236,7 +228,6 @@ export default function Home() {
     }
   };
 
-  // 도서 수정 제출
   const handleUpdateBook = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedBook) return;
@@ -268,7 +259,6 @@ export default function Home() {
     }
   };
 
-  // 도서 삭제
   const handleDeleteBook = async (bookId: string) => {
     if (!confirm('정말 이 책을 서재에서 삭제(아카이브)하시겠습니까?')) return;
     try {
@@ -294,7 +284,6 @@ export default function Home() {
 
     try {
       if (editingLogId) {
-        // 수정
         const res = await fetch('/api/logs', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -314,7 +303,6 @@ export default function Home() {
           fetchBooks();
         } else alert(`수정 실패: ${data.error}`);
       } else {
-        // 등록
         const res = await fetch('/api/logs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -378,7 +366,6 @@ export default function Home() {
 
     try {
       if (editingPageLogId) {
-        // 수정
         const res = await fetch('/api/insights', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -397,7 +384,6 @@ export default function Home() {
           fetchBooks();
         } else alert(`수정 실패: ${data.error}`);
       } else {
-        // 등록
         const res = await fetch('/api/insights', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -473,7 +459,6 @@ export default function Home() {
     }
   };
 
-  // 타임라인 내 진도일지 삭제
   const handleDeleteLog = async (logId: string) => {
     if (!confirm('이 진도 기록을 삭제하시겠습니까?')) return;
     try {
@@ -488,7 +473,6 @@ export default function Home() {
     }
   };
 
-  // 타임라인 내 문장수집 삭제
   const handleDeleteInsight = async (pageLogId: string) => {
     if (!confirm('이 문장 수집 기록을 삭제하시겠습니까?')) return;
     try {
@@ -531,7 +515,6 @@ export default function Home() {
     }
   };
 
-  // 나의 독서 감상문 노션 저장
   const handleSaveMyReport = async () => {
     if (!selectedBook || !myReport.trim()) return alert('감상문 내용을 작성해 주세요.');
     setMyReportSaving(true);
@@ -578,7 +561,10 @@ export default function Home() {
   // 16. 도서 필터 및 정렬 계산
   const filteredBooks = books
     .filter((b) => {
-      if (activeTab === 'my' && b.nickname !== nickname) return false;
+      if (activeTab === 'my') {
+        const isMyBook = (b.nickname && b.nickname.trim() === nickname.trim()) || (user?.id && b.userId === user.id);
+        if (!isMyBook) return false;
+      }
       if (statusFilter === 'reading') return (b.progressPercent || 0) < 100;
       if (statusFilter === 'done') return (b.progressPercent || 0) >= 100;
       return true;
@@ -591,7 +577,7 @@ export default function Home() {
     });
 
   // 17. 랭킹보드 집계
-  const rankingList = React.useMemo(() => {
+  const rankingList = useMemo(() => {
     const userStats: { [nick: string]: { nickname: string; doneCount: number; totalPagesRead: number; bookCount: number } } = {};
 
     books.forEach((b) => {
@@ -681,7 +667,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* 검색 결과 목록 */}
         {searchResults.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
             {searchResults.map((book, index) => (
@@ -719,11 +704,11 @@ export default function Home() {
         </div>
 
         <div className="library-tabs">
-          <button className={`lib-tab-btn ${activeTab === 'my' ? 'active' : ''}`} onClick={() => setActiveTab('my')}>
-            내 서재 ({books.filter((b) => b.nickname === nickname).length})
-          </button>
           <button className={`lib-tab-btn ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>
             커뮤니티 전체 ({books.length})
+          </button>
+          <button className={`lib-tab-btn ${activeTab === 'my' ? 'active' : ''}`} onClick={() => setActiveTab('my')}>
+            내 서재 ({books.filter((b) => b.nickname === nickname || b.userId === user?.id).length})
           </button>
           <button className={`lib-tab-btn ${activeTab === 'rank' ? 'active' : ''}`} onClick={() => setActiveTab('rank')}>
             🏆 랭킹보드
@@ -783,7 +768,15 @@ export default function Home() {
           </div>
         ) : filteredBooks.length === 0 ? (
           <div className="panel text-center py-12 text-stone-500">
-            조건과 일치하는 도서가 없습니다. 상단에서 도서를 검색해 추가해 보세요!
+            {activeTab === 'my' ? (
+              <div>
+                <p className="font-bold mb-2">아직 '{nickname}' 닉네임으로 등록된 책이 없습니다.</p>
+                <p className="text-xs text-stone-400 mb-4">상단 [커뮤니티 전체] 탭을 눌러 모임원들의 책을 둘러보거나, 새 책을 검색해 추가해 보세요!</p>
+                <button className="ghost-button" onClick={() => setActiveTab('all')}>커뮤니티 전체 서재 보기</button>
+              </div>
+            ) : (
+              '조건과 일치하는 도서가 없습니다.'
+            )}
           </div>
         ) : (
           <div className="book-gallery">
@@ -885,7 +878,7 @@ export default function Home() {
         <p>Made with ❤️ by <strong>기록조율사 조용희</strong> <a href="https://www.instagram.com/record_tuner/" target="_blank">@record_tuner</a></p>
         <p style={{ marginTop: '8px' }}>
           <a href="#" onClick={(e) => { e.preventDefault(); setShowPrivacyModal(true); }} style={{ fontSize: '12px', marginRight: '12px' }}>개인정보처리방침</a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setShowCopyrightModal(true); }} style={{ fontSize: '12px', marginRight: '12px' }}>저작권 및 오픈소스 안내</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); setShowCopyrightModal(true); }} style={{ fontSize: '12px', marginRight: '12px' }}>저작권 및 이용 안내</a>
           <a href="#" onClick={(e) => { e.preventDefault(); alert('노션 백엔드와 안전하게 실시간 동기화되고 있습니다.'); }} style={{ fontSize: '12px' }}>서버 상태: 정상 🟢</a>
         </p>
       </footer>
@@ -908,7 +901,7 @@ export default function Home() {
               <label>활동할 닉네임
                 <input
                   type="text"
-                  placeholder="예: 기록조율사, 북튜너..."
+                  placeholder="예: 조용희, 최정윤, 김진수, 오태훈..."
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   required
@@ -918,7 +911,7 @@ export default function Home() {
                 <input
                   type="password"
                   maxLength={4}
-                  placeholder="예: 1234 (동명이인 방지 및 본인 인증)"
+                  placeholder="예: 0000 (동명이인 방지 및 본인 인증)"
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
                   required
@@ -1210,141 +1203,225 @@ export default function Home() {
         </div>
       )}
 
-      {/* 8. 사용법 가이드 튜토리얼 모달 */}
+      {/* 8. 공식 사용법 가이드 모달 (Book Tuning Guide.html 원문 100% 반영) */}
       {showTutorialModal && (
         <div className="modal">
           <div className="modal-backdrop" onClick={() => setShowTutorialModal(false)}></div>
-          <div className="modal-card">
+          <div className="modal-card" style={{ maxWidth: '640px' }}>
             <div className="section-title-row">
-              <h2>📖 북튜닝 5단계 가이드</h2>
+              <div>
+                <span className="text-xs bg-amber-800 text-white font-bold px-2 py-0.5 rounded-full inline-block mb-1">Book Tuning v4.2</span>
+                <h2 style={{ color: 'var(--accent-dark)' }}>📚 북튜닝 (Book Tuning) 공식 사용자 가이드</h2>
+              </div>
               <button className="ghost-button" onClick={() => setShowTutorialModal(false)}>닫기</button>
             </div>
 
-            {tutorialStep === 0 && (
-              <div className="tutorial-slide active space-y-2">
-                <h3 className="font-bold text-amber-900 text-base">🤝 1. 프로필 로그인 및 멤버 참여</h3>
-                <p className="text-sm leading-relaxed text-stone-600">
-                  활동할 닉네임과 4자리 비밀번호(PIN)를 입력하고 서재에 입장하세요. 동명이인이 있더라도 본인의 고유 노션 사용자 페이지와 안전하게 관계형으로 연결됩니다.
-                </p>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 text-sm leading-relaxed text-stone-700">
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
+                <p>책을 읽고 기록하며 내 삶과 생각의 주파수를 맞춰가는 공간입니다.<br />독서 기록부터 AI 감상문 생성, 노션(Notion) 자동 백업까지의 상세 안내를 확인하세요.</p>
               </div>
-            )}
 
-            {tutorialStep === 1 && (
-              <div className="tutorial-slide active space-y-2">
-                <h3 className="font-bold text-amber-900 text-base">🔍 2. 도서 검색 및 내 서재 등록</h3>
-                <p className="text-sm leading-relaxed text-stone-600">
-                  상단 검색창에 도서명이나 ISBN을 입력하세요. 국립중앙도서관 서지정보 API와 연동되어 정확한 총 쪽수가 자동으로 파싱됩니다. 검색되지 않는 책은 [직접 등록]할 수도 있습니다.
-                </p>
+              <div>
+                <h3 className="font-bold text-base text-amber-900 border-l-4 border-amber-800 pl-2 mb-2">🤝 1. 시작하기 (온보딩 및 멤버 참여)</h3>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><strong>서재 입장하기:</strong> 활동할 닉네임과 4자리 비밀번호(PIN)를 입력하고 입장합니다. 동명이인이 있더라도 고유 노션 사용자 페이지와 안전하게 관계형으로 연결됩니다.</li>
+                  <li><strong>다중 사용자 서재:</strong> [내 서재]에서는 내가 읽는 책들을, [커뮤니티 전체]에서는 모임원들이 함께 기록 중인 서재를 둘러볼 수 있습니다.</li>
+                </ul>
               </div>
-            )}
 
-            {tutorialStep === 2 && (
-              <div className="tutorial-slide active space-y-2">
-                <h3 className="font-bold text-amber-900 text-base">✍️ 3. 진도 기록 & 📷 문장 사진 OCR</h3>
-                <p className="text-sm leading-relaxed text-stone-600">
-                  책 카드의 [진도 기록]으로 누적 쪽수를 기록하면 진도율(%)이 올라갑니다. [문장 수집]에서는 책 페이지나 손글씨 사진을 올리면 Gemini AI가 문장을 읽어내 자동으로 입력해 줍니다.
-                </p>
+              <div>
+                <h3 className="font-bold text-base text-amber-900 border-l-4 border-amber-800 pl-2 mb-2">🔍 2. 도서 검색 및 스마트 API 연동</h3>
+                <div className="p-3 bg-white border border-stone-200 rounded-xl space-y-1 mb-2">
+                  <h4 className="font-bold text-amber-800">💡 카카오 + 국립중앙도서관 API (추천 하이브리드 모드)</h4>
+                  <ul className="list-disc pl-5 space-y-1 text-xs">
+                    <li><strong>작동 원리:</strong> 카카오 Book API를 이용해 도서 제목, 저자, 출판사, 표지, 책 소개를 실시간으로 검색하고, 카카오에서 제공하지 않는 <b>전체 쪽수</b>는 ISBN을 바탕으로 <b>국립중앙도서관 서지정보 API</b>에서 자동으로 보완하여 불러옵니다.</li>
+                    <li><strong>국립중앙도서관 API 키:</strong> 국립중앙도서관 Open API 이용안내 페이지에서 <code>cert_key</code>를 무료로 발급받아 환경변수에 넣으시면 쪽수가 100% 자동 파싱됩니다. 미입력 시에도 수동 입력이 지원됩니다.</li>
+                  </ul>
+                </div>
               </div>
-            )}
 
-            {tutorialStep === 3 && (
-              <div className="tutorial-slide active space-y-2">
-                <h3 className="font-bold text-amber-900 text-base">✨ 4. 통합 타임라인 & Gemini AI 독후감</h3>
-                <p className="text-sm leading-relaxed text-stone-600">
-                  책 표지를 누르면 지금까지의 독서 일지와 문장이 날짜순으로 정렬된 타임라인으로 펼쳐집니다. [✨ AI 초안] 탭을 누르면 내가 남긴 기록들을 융합해 AI 감상문을 써주고 노션 본문에 박제해 줍니다.
-                </p>
+              <div>
+                <h3 className="font-bold text-base text-amber-900 border-l-4 border-amber-800 pl-2 mb-2">📝 3. 독서 기록하기 & 타임라인 (v4.2 신기능)</h3>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><strong>📅 진도 기록:</strong> 읽은 날짜, 현재까지 누적해서 읽은 페이지 수, 간단한 소감을 남깁니다.</li>
+                  <li><strong>💡 인사이트 (문장 수집 & 사진 OCR):</strong>
+                    <ul className="list-disc pl-5 mt-1 space-y-1 text-xs">
+                      <li>감명 깊었던 특정 페이지 번호와 발췌 문장, 나의 생각을 기록합니다.</li>
+                      <li><strong>📷 사진 첨부 & AI OCR:</strong> 책 본문이나 손글씨 필기 노트를 사진 찍어 올리면, <b>Google Gemini AI</b>가 이미지 속 글자를 자동으로 판독하여 입력창에 넣어줍니다.</li>
+                      <li><strong>노션 본문 사진 첨부:</strong> 사진이 첨부된 문장수집은 노션 DB 동기화 시 해당 페이지의 <b>본문 이미지 블록</b>으로 자동 삽입됩니다.</li>
+                    </ul>
+                  </li>
+                  <li><strong>📈 스마트 진도율 계산:</strong> 진도기록에 입력한 페이지와 문장수집에 적은 페이지 중 <b>더 큰 쪽수(최댓값)를 기준으로 진도율이 자동 연산</b>되어 프로그레스 바와 랭킹에 즉시 반영됩니다.</li>
+                </ul>
               </div>
-            )}
 
-            {tutorialStep === 4 && (
-              <div className="tutorial-slide active space-y-2">
-                <h3 className="font-bold text-amber-900 text-base">🏆 5. 랭킹보드 & 노션 자체 포트폴리오</h3>
-                <p className="text-sm leading-relaxed text-stone-600">
-                  랭킹보드에서 모임원들의 완독 권수와 누적 읽은 페이지 수를 확인할 수 있습니다. 노션 앱을 열면 나만의 독서 대시보드가 관계형으로 완벽히 구축되어 있습니다.
-                </p>
+              <div>
+                <h3 className="font-bold text-base text-amber-900 border-l-4 border-amber-800 pl-2 mb-2">🤖 4. Gemini AI 감상문 & 노션(Notion) 동기화</h3>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><strong>✨ Gemini AI 1인칭 감상문:</strong> 도서 상세 화면의 [✨ AI 초안] 탭에서 누적된 진도 일지와 문장들을 분석하여 1인칭 독자 어조의 깊이 있는 감상문 초안을 5~10초 만에 작성해 줍니다.</li>
+                  <li><strong>✍️ 나의 감상문 백업:</strong> 직접 작성한 최종 감상문을 입력하고 <b>[노션으로 내보내기 & 저장]</b>을 클릭하면, 내 노션 데이터베이스 페이지 내에 실시간 블록으로 안전하게 영구 저장됩니다.</li>
+                </ul>
               </div>
-            )}
 
-            <div className="tutorial-dots">
-              {[0, 1, 2, 3, 4].map((idx) => (
-                <div
-                  key={idx}
-                  className={`tutorial-dot ${tutorialStep === idx ? 'active' : ''}`}
-                  onClick={() => setTutorialStep(idx)}
-                ></div>
-              ))}
+              <div>
+                <h3 className="font-bold text-base text-amber-900 border-l-4 border-amber-800 pl-2 mb-2">🏆 5. 커뮤니티, 공감 & 랭킹보드</h3>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li><strong>❤️ 공감 (좋아요):</strong> 모임원이 독서 중인 책에 하트를 눌러 응원 메시지를 전달해 보세요.</li>
+                  <li><strong>🏆 독서 랭킹보드:</strong> 모임 내에서 누가 가장 많은 페이지를 읽었는지 실시간 독서량 랭킹을 확인할 수 있습니다.</li>
+                </ul>
+              </div>
             </div>
 
-            <div className="flex justify-between items-center pt-3 border-t">
-              <button
-                className="ghost-button text-xs"
-                style={{ visibility: tutorialStep === 0 ? 'hidden' : 'visible' }}
-                onClick={() => setTutorialStep((prev) => Math.max(0, prev - 1))}
-              >
-                이전
-              </button>
-              {tutorialStep < 4 ? (
-                <button className="text-xs" onClick={() => setTutorialStep((prev) => Math.min(4, prev + 1))}>
-                  다음 가이드 보기
-                </button>
-              ) : (
-                <button className="text-xs" onClick={() => setShowTutorialModal(false)}>
-                  시작하기! 🚀
-                </button>
-              )}
+            <div className="text-right pt-3 border-t mt-4">
+              <button onClick={() => setShowTutorialModal(false)}>가이드 닫기</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 9. 개발로그 모달 */}
+      {/* 9. 개발로그 모달 (backup Index.html 개발로그 원문 100% 반영) */}
       {showDevLogModal && (
         <div className="modal">
           <div className="modal-backdrop" onClick={() => setShowDevLogModal(false)}></div>
-          <div className="modal-card">
+          <div className="modal-card" style={{ maxWidth: '600px' }}>
             <div className="section-title-row">
-              <h2>📝 개발 로그</h2>
+              <div><h2 style={{ color: 'var(--accent-dark)' }}>📝 개발 로그 (Release Notes)</h2></div>
               <button className="ghost-button" onClick={() => setShowDevLogModal(false)}>닫기</button>
             </div>
-            <div className="text-xs space-y-3 leading-relaxed text-stone-700">
-              <p><b>v4.2.0 (Notion 단독 백엔드 완전 이관)</b>: 구글 시트를 완전히 제거하고 노션 데이터베이스 4종(도서, 독서일지, 문장수집, 사용자)을 직접 백엔드로 사용하는 Next.js 풀스택 앱 구축 완료.</p>
-              <p>• 사용자 DB 신설 및 Relation 연결을 통한 동명이인 식별 보장</p>
-              <p>• 진도율(%) 및 최근 쪽수 실시간 롤업 계산 엔진 탑재</p>
-              <p>• 국립중앙도서관(NL) 서지정보 API 연동으로 정확한 전체 페이지수 자동 파싱</p>
-              <p>• Gemini 2.5 Flash 기반 Vision OCR 및 1인칭 독서 감상문 초안 생성</p>
+            <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-2 text-xs leading-relaxed text-stone-700">
+              <div className="border-b pb-3">
+                <h4 className="font-bold text-sm text-amber-900 mb-1">v4.2 (노션 단독 백엔드 완전 이관)</h4>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li>문장수집(인사이트) 페이지 번호를 진도율 계산에 통합 반영 (진도기록과 문장수집 중 더 큰 쪽수 기준 자동 계산)</li>
+                  <li>문장수집 시 도서 본문 및 손글씨 메모 사진 첨부(업로드) 기능 추가</li>
+                  <li>Google Gemini AI 기반 실시간 OCR(문자 인식) 텍스트 자동 추출 및 손쉬운 편집 기능 지원</li>
+                  <li>노션(Notion) 문장수집 데이터베이스 동기화 시 업로드된 사진을 페이지 본문 이미지 블록으로 자동 첨부</li>
+                  <li>구글 시트를 완전히 제거하고 노션 데이터베이스 4종(도서, 독서일지, 문장수집, 사용자)을 단독 Primary DB로 완전 이관</li>
+                  <li>사용자 DB 신설 및 관계형(Relation) 연결을 통한 동명이인 식별 보장</li>
+                </ul>
+              </div>
+
+              <div className="border-b pb-3">
+                <h4 className="font-bold text-sm text-stone-800 mb-1">v4.1</h4>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li>카카오(Kakao) 도서 검색 API 연동 추가</li>
+                  <li>신규 사용자를 위한 슬라이드형 튜토리얼(온보딩) 가이드 도입</li>
+                  <li>설정창 내 각종 API 키(도서검색, Gemini, Notion) 발급 안내 링크 추가</li>
+                  <li>마스터 전용 노션 템플릿 배포 및 관리자 복제 기능 추가</li>
+                  <li>모임 개설 시 비밀번호 인증 로직 및 커스텀 알림창 UI 개선</li>
+                </ul>
+              </div>
+
+              <div className="border-b pb-3">
+                <h4 className="font-bold text-sm text-stone-800 mb-1">v4.0</h4>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li>SaaS형 다중 그룹 아키텍처 도입 (개별 구글 시트 독립 연동)</li>
+                  <li>상황별 동적 로딩 메시지 및 노션 하이퍼링크 기능 통합 적용</li>
+                </ul>
+              </div>
+
+              <div className="border-b pb-3">
+                <h4 className="font-bold text-sm text-stone-800 mb-1">v3.2</h4>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li>알라딘 / 네이버 도서 검색 API 자유 선택(스위칭) 기능 추가</li>
+                  <li>사용자 취향에 맞춰 '자동 쪽수(알라딘)' 또는 '고화질 표지(네이버)' 선택 가능</li>
+                </ul>
+              </div>
+
+              <div className="border-b pb-3">
+                <h4 className="font-bold text-sm text-stone-800 mb-1">v3.1</h4>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li>문장 수집용 노션 독립 데이터베이스 연동 기능 추가</li>
+                  <li>모달 창 겹침(z-index) 및 뒤로 숨는 UI 버그 수정</li>
+                  <li>스크립트 오타(수정 버튼 비활성화) 및 독서일지 규격 오류 해결</li>
+                  <li>개발 로그(Release Notes) 확인 기능 신설</li>
+                </ul>
+              </div>
+
+              <div className="border-b pb-3">
+                <h4 className="font-bold text-sm text-stone-800 mb-1">v3.0</h4>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li>도서 검색 API 전면 교체 (알라딘 방화벽 ➔ 카카오 ➔ 네이버 API 정착)</li>
+                  <li>동일 도서 다중 등록 허용 (ISBN + 닉네임 동시 식별 로직 추가)</li>
+                  <li>노션 동기화 시 커버 이미지 화질 개선 및 속성(체크박스) 자동화</li>
+                </ul>
+              </div>
+
+              <div className="border-b pb-3">
+                <h4 className="font-bold text-sm text-stone-800 mb-1">v2.5</h4>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li>커뮤니티 기능 추가 (다중 접속 및 타인 기록 열람 허용)</li>
+                  <li>랭킹보드 신설 및 도서 공감(좋아요) 기능 도입</li>
+                  <li>내 서재 / 커뮤니티 전체 서재 탭 분리</li>
+                </ul>
+              </div>
+
+              <div className="border-b pb-3">
+                <h4 className="font-bold text-sm text-stone-800 mb-1">v2.0</h4>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li>Notion API 연동 (도서 DB 및 독서일지 DB 자동 동기화 구축)</li>
+                  <li>앱 내 기록 시 노션 페이지 내 실시간 블록 생성 기능 추가</li>
+                </ul>
+              </div>
+
+              <div className="border-b pb-3">
+                <h4 className="font-bold text-sm text-stone-800 mb-1">v1.5</h4>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li>Gemini AI API 도입</li>
+                  <li>누적된 진도 및 문장 수집 데이터를 바탕으로 한 AI 1인칭 자동 감상문 초안 생성 기능 추가</li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-sm text-stone-800 mb-1">v1.0</h4>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li>구글 앱스 스크립트(GAS) 기반 독서기록 웹앱 초기 버전 출시</li>
+                  <li>알라딘 API 연동 도서 검색 및 기본 기록 구글 시트 저장 기능 구현</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 10. 개인정보처리방침 모달 */}
+      {/* 10. 개인정보처리방침 모달 (backup Index.html 원문 1~8조항 100% 반영) */}
       {showPrivacyModal && (
         <div className="modal">
           <div className="modal-backdrop" onClick={() => setShowPrivacyModal(false)}></div>
-          <div className="modal-card">
+          <div className="modal-card" style={{ maxWidth: '580px' }}>
             <div className="section-title-row">
-              <h2>🛡️ 개인정보처리방침</h2>
+              <div><h2 style={{ color: 'var(--accent-dark)' }}>🛡️ 개인정보처리방침</h2></div>
               <button className="ghost-button" onClick={() => setShowPrivacyModal(false)}>닫기</button>
             </div>
-            <p className="text-xs leading-relaxed text-stone-600">
-              본 서비스는 주민등록번호, 연락처 등의 민감한 개인정보를 일절 수집하지 않으며, 사용자가 입력한 활동 닉네임과 PIN 번호, 독서 기록은 안전하게 사용자의 노션 데이터베이스로 직접 저장·관리됩니다.
-            </p>
+            <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-2 text-xs leading-relaxed text-stone-700">
+              <p><strong>1. 수집하는 개인정보 항목 및 수집 방법</strong><br />본 앱은 서비스 제공을 위해 최소한의 개인정보인 '닉네임' 및 '독서 기록(진도, 감상문, 인사이트)'을 수집합니다. 닉네임은 가명 사용을 권장합니다.</p>
+              <p><strong>2. 개인정보의 수집 및 이용 목적</strong><br />수집된 정보는 모임 내에서 개인의 독서 기록을 식별하고, AI(Gemini)를 통한 맞춤형 독서 감상문 초안 작성을 위해 이용됩니다.</p>
+              <p><strong>3. 개인정보의 보유 및 이용 기간</strong><br />사용자의 개인정보는 모임 운영 기간 동안 또는 사용자가 삭제를 요청할 때까지 보관됩니다. 불필요해진 정보는 즉시 파기합니다.</p>
+              <p><strong>4. 제3자 제공 및 취급 위탁</strong><br />사용자가 작성한 기록은 AI 감상문 작성을 위해 'Google Gemini API'에 제공되며, 데이터 영구 저장을 위해 'Notion API'에 기록됩니다. 수탁자는 해당 목적 외에는 정보를 사용하지 않습니다.</p>
+              <p><strong>5. 정보주체의 권리 및 행사 방법 (열람, 정정, 삭제)</strong><br />사용자는 앱 내 기능(삭제 버튼 등)을 이용하여 본인의 기록을 언제든지 확인, 수정, 삭제할 수 있습니다.</p>
+              <p><strong>6. 아동 개인정보 보호</strong><br />본 앱은 학생 등 아동의 개인정보를 수집할 때 법정대리인의 동의 절차나 가명 처리를 통해 보호 조치를 다합니다.</p>
+              <p><strong>7. 개인정보 보호책임자</strong><br />해당 모임의 마스터 관리자(선생님)가 보호책임자 역할을 수행하며, 문의 사항은 앱 내 '지원/문의' 게시판을 통해 접수합니다.</p>
+              <p><strong>8. 개인정보의 안전성 확보 조치</strong><br />앱 접근을 위한 고유 승인 코드 시스템 등을 통해 비인가자의 접근을 차단하여 안전하게 관리합니다.</p>
+            </div>
           </div>
         </div>
       )}
 
-      {/* 11. 저작권 모달 */}
+      {/* 11. 저작권 및 이용 안내 모달 (backup Index.html 원문 1~4항 100% 반영) */}
       {showCopyrightModal && (
         <div className="modal">
           <div className="modal-backdrop" onClick={() => setShowCopyrightModal(false)}></div>
-          <div className="modal-card">
+          <div className="modal-card" style={{ maxWidth: '560px' }}>
             <div className="section-title-row">
-              <h2>⚖️ 저작권 및 이용 안내</h2>
+              <div><h2 style={{ color: 'var(--accent-dark)' }}>⚖️ 저작권 및 이용 안내</h2></div>
               <button className="ghost-button" onClick={() => setShowCopyrightModal(false)}>닫기</button>
             </div>
-            <p className="text-xs leading-relaxed text-stone-600">
-              본 웹앱의 기획 및 디자인 저작권은 '기록조율사 조용희' 선생님에게 있으며, 오픈소스 MIT 라이선스에 따라 누구나 자유롭게 복제하여 개인 및 독서 모임용으로 배포해 사용할 수 있습니다.
-            </p>
+            <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-2 text-xs leading-relaxed text-stone-700">
+              <p><strong>1. 권리자 (소유권)</strong><br />본 앱의 기획, 화면 설계 및 핵심 프롬프트(비법) 구조에 대한 모든 권리는 '기록조율사 서울외고 조용희 선생님'에게 있습니다.</p>
+              <p><strong>2. 이용 허락 범위</strong><br />누구나 접속하여 이용할 수 있으나, 그룹 개설은 교사만 가능합니다. 앱 코드를 참고하는 것은 가능하지만, 무단으로 복제하여 재배포하거나 동일한 서비스를 상업적으로 운영하는 것은 금지됩니다.</p>
+              <p><strong>3. AI 학습 및 크롤링 제한</strong><br />권리자의 사전 허락 없이 본 앱의 소스 코드나 핵심 로직을 AI 모델 학습(Training)에 무단으로 사용하는 것을 제한합니다.</p>
+              <p><strong>4. 외부 API 라이선스 준수</strong><br />본 앱은 네이버, 알라딘, 카카오 API 등을 비상업적·교육적 목적으로 안전하게 이용하고 있습니다.</p>
+            </div>
           </div>
         </div>
       )}

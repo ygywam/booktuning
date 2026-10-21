@@ -31,6 +31,7 @@ export async function GET(request: Request) {
 
         logRes.results.forEach((page: any) => {
           const props = page.properties;
+          const userRel = props['사용자']?.relation || props['[북튜닝] 사용자 DB']?.relation || [];
           readingLogs.push({
             logId: page.id,
             bookNotionPageId: bookId,
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
             readPages: props['이번에 읽은 페이지(숫자)']?.number || 0,
             note: props['독서 감상록']?.rich_text[0]?.plain_text || '',
             nickname: props['기록자']?.rich_text[0]?.plain_text || '',
-            userId: props['사용자']?.relation?.[0]?.id || '',
+            userId: userRel[0]?.id || '',
             createdAt: page.created_time,
           });
         });
@@ -64,13 +65,14 @@ export async function GET(request: Request) {
         insightRes.results.forEach((page: any) => {
           const props = page.properties;
           const readDate = props['읽은날짜']?.date?.start || page.created_time.split('T')[0];
+          const userRel = props['사용자']?.relation || props['[북튜닝] 사용자 DB']?.relation || [];
           pageLogs.push({
             pageLogId: page.id,
             bookNotionPageId: bookId,
             page: props['페이지']?.rich_text[0]?.plain_text || '',
             notes: props['내용']?.title[0]?.plain_text || '',
             nickname: props['기록자']?.rich_text[0]?.plain_text || '',
-            userId: props['사용자']?.relation?.[0]?.id || '',
+            userId: userRel[0]?.id || '',
             readDate,
             createdAt: page.created_time,
           });

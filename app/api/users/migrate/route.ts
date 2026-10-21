@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { notion, USER_DB_ID, BOOK_DB_ID, LOG_DB_ID, INSIGHT_DB_ID } from '../../../../lib/notion';
 
+export const dynamic = 'force-dynamic';
+
 // 기존 노션 데이터의 '기록자' 텍스트를 읽어 사용자 DB에 생성하고 관계형으로 연결하는 원클릭 마이그레이션
 export async function POST() {
   try {
     if (!USER_DB_ID) {
       return NextResponse.json({
         ok: false,
-        error: 'NOTION_USER_DB_ID가 설정되어 있지 않습니다. 먼저 노션에 사용자 DB를 만들고 ID를 등록해 주세요.',
+        error: 'NOTION_USER_DB_ID가 설정되어 있지 않습니다.',
       }, { status: 400 });
     }
 
@@ -44,25 +46,36 @@ export async function POST() {
       return newPage.id;
     };
 
+    // 헬퍼: 페이지에 사용자 relation 연결 (프로퍼티 이름 자동 감지)
+    const linkUserToPage = async (page: any, userId: string) => {
+      const props = page.properties;
+      const relPropName = props['[북튜닝] 사용자 DB'] ? '[북튜닝] 사용자 DB' : (props['사용자'] ? '사용자' : null);
+      if (!relPropName) return false;
+
+      const currentRel = props[relPropName]?.relation || [];
+      if (currentRel.length === 0) {
+        await notion.pages.update({
+          page_id: page.id,
+          properties: {
+            [relPropName]: { relation: [{ id: userId }] },
+          },
+        });
+        return true;
+      }
+      return false;
+    };
+
     // 2. 도서 DB 순회 및 관계형 연결
     if (BOOK_DB_ID) {
       const booksRes = await notion.databases.query({ database_id: BOOK_DB_ID });
       for (const page of booksRes.results as any[]) {
-        const currentRel = page.properties['사용자']?.relation;
-        if (!currentRel || currentRel.length === 0) {
-          const nick = page.properties['기록자']?.rich_text[0]?.plain_text || '기록조율사';
-          const userId = await getOrCreateUserId(nick);
-          try {
-            await notion.pages.update({
-              page_id: page.id,
-              properties: {
-                '사용자': { relation: [{ id: userId }] },
-              },
-            });
-            report.booksLinked++;
-          } catch (e) {
-            console.warn(`도서(${page.id}) 관계형 연결 건너뜀:`, e);
-          }
+        const nick = page.properties['기록자']?.rich_text[0]?.plain_text || '기록조율사';
+        const userId = await getOrCreateUserId(nick);
+        try {
+          const linked = await linkUserToPage(page, userId);
+          if (linked) report.booksLinked++;
+        } catch (e) {
+          console.warn(`도서(${page.id}) 관계형 연결 건너뜀:`, e);
         }
       }
     }
@@ -71,21 +84,13 @@ export async function POST() {
     if (LOG_DB_ID) {
       const logsRes = await notion.databases.query({ database_id: LOG_DB_ID });
       for (const page of logsRes.results as any[]) {
-        const currentRel = page.properties['사용자']?.relation;
-        if (!currentRel || currentRel.length === 0) {
-          const nick = page.properties['기록자']?.rich_text[0]?.plain_text || '기록조율사';
-          const userId = await getOrCreateUserId(nick);
-          try {
-            await notion.pages.update({
-              page_id: page.id,
-              properties: {
-                '사용자': { relation: [{ id: userId }] },
-              },
-            });
-            report.logsLinked++;
-          } catch (e) {
-            console.warn(`독서일지(${page.id}) 관계형 연결 건너뜀:`, e);
-          }
+        const nick = page.properties['기록자']?.rich_text[0]?.plain_text || '기록조율사';
+        const userId = await getOrCreateUserId(nick);
+        try {
+          const linked = await linkUserToPage(page, userId);
+          if (linked) report.logsLinked++;
+        } catch (e) {
+          console.warn(`독서일지(${page.id}) 관계형 연결 건너뜀:`, e);
         }
       }
     }
@@ -94,21 +99,13 @@ export async function POST() {
     if (INSIGHT_DB_ID) {
       const insightsRes = await notion.databases.query({ database_id: INSIGHT_DB_ID });
       for (const page of insightsRes.results as any[]) {
-        const currentRel = page.properties['사용자']?.relation;
-        if (!currentRel || currentRel.length === 0) {
-          const nick = page.properties['기록자']?.rich_text[0]?.plain_text || '기록조율사';
-          const userId = await getOrCreateUserId(nick);
-          try {
-            await notion.pages.update({
-              page_id: page.id,
-              properties: {
-                '사용자': { relation: [{ id: userId }] },
-              },
-            });
-            report.insightsLinked++;
-          } catch (e) {
-            console.warn(`문장수집(${page.id}) 관계형 연결 건너뜀:`, e);
-          }
+        const nick = page.properties['기록자']?.rich_text[0]?.plain_text || '기록조율사';
+        const userId = await getOrCreateUserId(nick);
+        try {
+          const linked = await linkUserToPage(page, userId);
+          if (linked) report.insightsLinked++;
+        } catch (e) {
+          console.warn(`문장수집(${page.id}) 관계형 연결 건너뜀:`, e);
         }
       }
     }
