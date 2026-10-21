@@ -11,3 +11,4 @@ export const notion = new Client({
 export const BOOK_DB_ID = process.env.NOTION_BOOK_DB_ID || '';
 export const LOG_DB_ID = process.env.NOTION_LOG_DB_ID || '';
 export const INSIGHT_DB_ID = process.env.NOTION_INSIGHT_DB_ID || '';
+export const USER_DB_ID = process.env.NOTION_USER_DB_ID || '';

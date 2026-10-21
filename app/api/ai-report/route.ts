@@ -1,20 +1,54 @@
 import { NextResponse } from 'next/server';
-// 기존: import { notion } from '@/lib/notion';
-import { notion } from '../../../lib/notion';
+import { notion, LOG_DB_ID, INSIGHT_DB_ID } from '../../../lib/notion';
 
 export async function POST(request: Request) {
   try {
-    const { bookTitle, author, readingLogs, pageLogs, notionPageId } = await request.json();
+    const { bookTitle, author, readingLogs: clientReadingLogs, pageLogs: clientPageLogs, notionPageId } = await request.json();
     const geminiKey = process.env.GEMINI_API_KEY;
 
     if (!geminiKey) {
       return NextResponse.json({ ok: false, error: '서버에 GEMINI_API_KEY가 설정되지 않았습니다.' }, { status: 500 });
     }
 
-    const readingSummary = (readingLogs || [])
+    let readingLogs = clientReadingLogs || [];
+    let pageLogs = clientPageLogs || [];
+
+    // 만약 클라이언트에서 로그가 누락되었고 notionPageId가 있다면 노션 DB에서 직접 조회
+    if (notionPageId && readingLogs.length === 0 && LOG_DB_ID) {
+      try {
+        const logRes = await notion.databases.query({
+          database_id: LOG_DB_ID,
+          filter: { property: '관련 책', relation: { contains: notionPageId } },
+        });
+        readingLogs = logRes.results.map((p: any) => ({
+          readDate: p.properties['읽은 날짜']?.title[0]?.plain_text || '',
+          readPages: p.properties['이번에 읽은 페이지(숫자)']?.number || 0,
+          note: p.properties['독서 감상록']?.rich_text[0]?.plain_text || '',
+        }));
+      } catch (e) {
+        console.warn('AI 감상문 생성 중 독서일지 조회 건너뜀:', e);
+      }
+    }
+
+    if (notionPageId && pageLogs.length === 0 && INSIGHT_DB_ID) {
+      try {
+        const insightRes = await notion.databases.query({
+          database_id: INSIGHT_DB_ID,
+          filter: { property: '관련 책', relation: { contains: notionPageId } },
+        });
+        pageLogs = insightRes.results.map((p: any) => ({
+          page: p.properties['페이지']?.rich_text[0]?.plain_text || '',
+          notes: p.properties['내용']?.title[0]?.plain_text || '',
+        }));
+      } catch (e) {
+        console.warn('AI 감상문 생성 중 문장수집 조회 건너뜀:', e);
+      }
+    }
+
+    const readingSummary = readingLogs
       .map((l: any) => `[진도/감정] 날짜:${l.readDate}, 누적:${l.readPages}쪽 - "${l.note}"`)
       .join('\n');
-    const pageSummary = (pageLogs || [])
+    const pageSummary = pageLogs
       .map((l: any) => `[발췌/인사이트] ${l.page}쪽 - "${l.notes}"`)
       .join('\n');
 
@@ -37,38 +71,46 @@ ${pageSummary || '없음'}
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
     });
 
-    if (!res.ok) throw new Error(`Gemini API 통신 오류 (${res.status})`);
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Gemini API 통신 오류 (${res.status}): ${errText}`);
+    }
 
     const data = await res.json();
     const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-    // 노션 해당 도서 페이지에 감상문 블록 추가
+    // 노션 해당 도서 페이지 본문에 감상문 블록 추가
     if (notionPageId && generatedText) {
-      const paragraphs = generatedText.split('\n').filter((p: string) => p.trim() !== '');
-      const blocks = [
-        {
-          object: 'block',
-          type: 'heading_2',
-          heading_2: {
-            rich_text: [{ type: 'text', text: { content: '✨ Gemini AI 감상문' } }],
-            color: 'blue_background',
+      try {
+        const paragraphs = generatedText.split('\n').filter((p: string) => p.trim() !== '');
+        const blocks = [
+          {
+            object: 'block',
+            type: 'heading_2',
+            heading_2: {
+              rich_text: [{ type: 'text', text: { content: '✨ Gemini AI 감상문' } }],
+              color: 'blue_background',
+            },
           },
-        },
-        ...paragraphs.map((p: string) => ({
-          object: 'block',
-          type: 'paragraph',
-          paragraph: { rich_text: [{ type: 'text', text: { content: p.substring(0, 1999) } }] },
-        })),
-      ];
+          ...paragraphs.map((p: string) => ({
+            object: 'block',
+            type: 'paragraph',
+            paragraph: { rich_text: [{ type: 'text', text: { content: p.substring(0, 1999) } }] },
+          })),
+        ];
 
-      await notion.blocks.children.append({
-        block_id: notionPageId,
-        children: blocks as any,
-      });
+        await notion.blocks.children.append({
+          block_id: notionPageId,
+          children: blocks as any,
+        });
+      } catch (blockErr) {
+        console.warn('노션 감상문 본문 추가 오류:', blockErr);
+      }
     }
 
     return NextResponse.json({ ok: true, aiReport: generatedText });
   } catch (error: any) {
+    console.error('AI 감상문 생성 오류:', error);
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 }
