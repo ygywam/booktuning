@@ -189,6 +189,66 @@ p { margin: 0; }
 }
 
 /* 푸터 (Footer) 스타일 */
-.app-footer { margin-top: 50px; padding: 30px; border-top: 1px solid var(--line); text-align: center; color: var(--muted); font-size: 14px; }
+.app-footer { margin-top: 50px; padding: 30px 16px; border-top: 1px solid var(--line); text-align: center; color: var(--muted); font-size: 14px; }
 .app-footer a { color: var(--accent); text-decoration: none; font-weight: bold; }
 .app-footer a:hover { text-decoration: underline; }
+
+/* 📋 노션 데이터베이스 열기 알약 버튼 (이미지 2 규격) */
+.notion-outlink-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+.notion-outlink-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #ffffff;
+  color: var(--text);
+  border: 1px solid var(--line);
+  padding: 11px 26px;
+  border-radius: 99px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none !important;
+  box-shadow: 0 4px 14px rgba(66, 44, 24, 0.08);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.notion-outlink-btn:hover {
+  background: #fffaf2;
+  border-color: var(--accent);
+  color: var(--accent-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(66, 44, 24, 0.14);
+}
+
+/* 앱 타이틀 및 로고 아이콘 */
+.app-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.app-logo-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(143, 95, 54, 0.2);
+  flex-shrink: 0;
+}
+
+/* 모바일 반응형 최적화 (틀어짐 방지) */
+@media (max-width: 640px) {
+  .app { padding: 16px 12px 50px; }
+  .app-header { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .header-nav-row { width: 100%; justify-content: flex-start; overflow-x: auto; padding-bottom: 4px; }
+  .header-nav-row button { padding: 6px 10px; font-size: 12px; }
+  .search-row { grid-template-columns: 1fr auto; }
+  .book-gallery { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .modal-card { padding: 16px; border-radius: 16px; width: 95%; }
+  .card-actions { grid-template-columns: repeat(3, 1fr); }
+  .card-actions button { padding: 6px 2px; font-size: 10px; }
+  h1 { font-size: 22px; }
+  .app-logo-icon { width: 32px; height: 32px; }
+}

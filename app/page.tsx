@@ -10,15 +10,16 @@ export default function Home() {
   const [pin, setPin] = useState('0000');
   const [theme, setTheme] = useState('theme-base');
 
-  // 2. 도서 서재 상태 (기본 탭: 커뮤니티 전체 'all'로 설정하여 모든 기록이 즉시 보이도록)
+  // 2. 도서 서재 상태 (기본: 커뮤니티 전체)
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'my' | 'rank'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'reading' | 'done'>('all');
   const [sortBy, setSortBy] = useState<'latest' | 'progress' | 'title' | 'likes'>('latest');
 
-  // 3. 도서 검색 상태
+  // 3. 도서 검색 상태 및 API 선택 (카카오, 알라딘, 네이버)
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchApiType, setSearchApiType] = useState<'kakao' | 'aladin' | 'naver'>('kakao');
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
@@ -46,20 +47,17 @@ export default function Home() {
   const [myReportSaving, setMyReportSaving] = useState(false);
 
   // 6. 폼 상태들
-  // 진도 기록 폼
   const [readDate, setReadDate] = useState('');
   const [readPages, setReadPages] = useState<number | ''>('');
   const [note, setNote] = useState('');
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
 
-  // 문장 수집 폼
   const [insightPage, setInsightPage] = useState('');
   const [insightNotes, setInsightNotes] = useState('');
   const [insightImageUrl, setInsightImageUrl] = useState('');
   const [ocrLoading, setOcrLoading] = useState(false);
   const [editingPageLogId, setEditingPageLogId] = useState<string | null>(null);
 
-  // 도서 직접 등록/수정 폼
   const [manualTitle, setManualTitle] = useState('');
   const [manualAuthor, setManualAuthor] = useState('');
   const [manualPublisher, setManualPublisher] = useState('');
@@ -67,14 +65,14 @@ export default function Home() {
   const [manualDesc, setManualDesc] = useState('');
   const [manualCover, setManualCover] = useState('');
 
-  // 튜토리얼 스텝
-  const [tutorialStep, setTutorialStep] = useState(0);
-
   // 7. 초기화 로드
   useEffect(() => {
     const savedTheme = localStorage.getItem('app_theme') || 'theme-base';
     setTheme(savedTheme);
     document.body.className = savedTheme;
+
+    const savedApiType = (localStorage.getItem('search_api_type') as any) || 'kakao';
+    setSearchApiType(savedApiType);
 
     const today = new Date().toISOString().split('T')[0];
     setReadDate(today);
@@ -100,6 +98,11 @@ export default function Home() {
     setTheme(newTheme);
     document.body.className = newTheme;
     localStorage.setItem('app_theme', newTheme);
+  };
+
+  const changeSearchApiType = (newType: 'kakao' | 'aladin' | 'naver') => {
+    setSearchApiType(newType);
+    localStorage.setItem('search_api_type', newType);
   };
 
   const fetchBooks = async () => {
@@ -146,12 +149,12 @@ export default function Home() {
     }
   };
 
-  // 9. 도서 검색
+  // 9. 도서 검색 (다각화: kakao, aladin, naver)
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     setSearching(true);
     try {
-      const res = await fetch(`/api/search-books?query=${encodeURIComponent(searchQuery)}`);
+      const res = await fetch(`/api/search-books?query=${encodeURIComponent(searchQuery)}&type=${searchApiType}`);
       const data = await res.json();
       if (data.ok) {
         setSearchResults(data.books || []);
@@ -600,21 +603,21 @@ export default function Home() {
 
   return (
     <div className="app">
-      {/* 1. 상단 헤더 */}
+      {/* 1. 상단 헤더 (아이콘 + v4.3 표기) */}
       <header className="app-header">
         <div>
-          <p className="eyebrow">{nickname}님의 독서기록 v4.2 👑</p>
-          <h1>북튜닝 (Book Tuning)</h1>
+          <p className="eyebrow">{nickname}님의 독서기록 v4.3 👑</p>
+          <div className="app-title-row">
+            <img src="/icon.svg" className="app-logo-icon" alt="북튜닝 로고" />
+            <h1>북튜닝 (Book Tuning)</h1>
+          </div>
           <p className="subtitle">책을 읽고 기록하며 내 삶과 생각의 주파수를 맞춰가는 공간입니다.</p>
         </div>
         <div className="header-nav-row">
           <button
             className="ghost-button"
             style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
-            onClick={() => {
-              setTutorialStep(0);
-              setShowTutorialModal(true);
-            }}
+            onClick={() => setShowTutorialModal(true)}
           >
             📖 사용법
           </button>
@@ -635,7 +638,9 @@ export default function Home() {
         <div className="section-title-row">
           <div>
             <h2>도서 검색 및 추가</h2>
-            <p className="subtitle">도서명 또는 ISBN 바코드를 입력해 책 정보를 불러옵니다. (국립중앙도서관 쪽수 자동 파싱 연동)</p>
+            <p className="subtitle">
+              현재 검색 엔진: <b>{searchApiType === 'kakao' ? '카카오 + 국립중앙도서관' : searchApiType === 'aladin' ? '알라딘' : '네이버'}</b> (설정에서 변경 가능)
+            </p>
           </div>
           <button
             className="ghost-button"
@@ -682,7 +687,7 @@ export default function Home() {
                   <p className="font-bold text-sm truncate">{book.title}</p>
                   <p className="text-xs text-stone-500 truncate">{book.author} | {book.publisher}</p>
                   <p className="text-xs text-amber-800 font-semibold mt-1">
-                    {book.totalPages > 0 ? `📖 총 ${book.totalPages}쪽 (NL 인증)` : '📄 쪽수 미정 (직접 입력 가능)'}
+                    {book.totalPages > 0 ? `📖 총 ${book.totalPages}쪽` : '📄 쪽수 미정 (수동 입력 가능)'}
                   </p>
                 </div>
                 <button className="text-xs py-2 px-3" onClick={() => handleRegisterBook(book)}>
@@ -873,13 +878,25 @@ export default function Home() {
         )}
       </section>
 
-      {/* 4. 푸터 */}
+      {/* 4. 노션 데이터베이스 열기 알약 버튼 (이미지 2 복원) */}
+      <div className="notion-outlink-container">
+        <a
+          href="https://www.notion.so/33f9a4211895829a9cdf017dc886e012"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="notion-outlink-btn"
+        >
+          <span>📋</span> 노션 데이터베이스 열기 ↗
+        </a>
+      </div>
+
+      {/* 5. 푸터 (이미지 2 복원) */}
       <footer className="app-footer">
-        <p>Made with ❤️ by <strong>기록조율사 조용희</strong> <a href="https://www.instagram.com/record_tuner/" target="_blank">@record_tuner</a></p>
-        <p style={{ marginTop: '8px' }}>
-          <a href="#" onClick={(e) => { e.preventDefault(); setShowPrivacyModal(true); }} style={{ fontSize: '12px', marginRight: '12px' }}>개인정보처리방침</a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setShowCopyrightModal(true); }} style={{ fontSize: '12px', marginRight: '12px' }}>저작권 및 이용 안내</a>
-          <a href="#" onClick={(e) => { e.preventDefault(); alert('노션 백엔드와 안전하게 실시간 동기화되고 있습니다.'); }} style={{ fontSize: '12px' }}>서버 상태: 정상 🟢</a>
+        <p>Made by <strong>기록조율사 조용희</strong> <a href="https://www.instagram.com/record_tuner/" target="_blank">@record_tuner</a></p>
+        <p style={{ marginTop: '10px' }}>
+          <a href="#" onClick={(e) => { e.preventDefault(); setShowPrivacyModal(true); }} style={{ fontSize: '13px', marginRight: '14px' }}>개인정보처리방침</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); setShowCopyrightModal(true); }} style={{ fontSize: '13px', marginRight: '14px' }}>저작권 및 이용 안내</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); alert('문의 사항은 @record_tuner 인스타그램 DM 또는 노션 페이지를 통해 접수해 주세요.'); }} style={{ fontSize: '13px' }}>지원/문의</a>
         </p>
       </footer>
 
@@ -1159,7 +1176,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* 7. 설정 모달 */}
+      {/* 7. 설정 모달 (이미지 3 검색 API 설정 복원) */}
       {showSettingsModal && (
         <div className="modal">
           <div className="modal-backdrop" onClick={() => setShowSettingsModal(false)}></div>
@@ -1176,6 +1193,24 @@ export default function Home() {
                 <option value="theme-dark">야간 모드 (다크 그레이)</option>
               </select>
             </label>
+
+            {/* 🛠️ 도서 검색 API 설정 (이미지 3 원형 복원) */}
+            <div className="pt-3 border-t">
+              <h3 className="font-bold text-sm text-stone-800 mb-2">🛠️ 도서 검색 API 설정</h3>
+              <label>검색 API 선택
+                <select
+                  value={searchApiType}
+                  onChange={(e: any) => changeSearchApiType(e.target.value)}
+                >
+                  <option value="kakao">카카오 + 국립중앙도서관 (추천 / 쪽수 연동)</option>
+                  <option value="aladin">알라딘 검색 (쪽수 자동 제공)</option>
+                  <option value="naver">네이버 검색 (고화질 표지)</option>
+                </select>
+              </label>
+              <p className="text-xs text-stone-500 mt-1">
+                ※ 선택하신 API 키가 Vercel 환경변수 또는 로컬 환경변수에 등록되어 있어야 작동합니다.
+              </p>
+            </div>
 
             <div className="pt-3 border-t">
               <span className="text-xs font-bold text-stone-600 block mb-2">👤 현재 로그인 프로필</span>
@@ -1210,7 +1245,7 @@ export default function Home() {
           <div className="modal-card" style={{ maxWidth: '640px' }}>
             <div className="section-title-row">
               <div>
-                <span className="text-xs bg-amber-800 text-white font-bold px-2 py-0.5 rounded-full inline-block mb-1">Book Tuning v4.2</span>
+                <span className="text-xs bg-amber-800 text-white font-bold px-2 py-0.5 rounded-full inline-block mb-1">Book Tuning v4.3</span>
                 <h2 style={{ color: 'var(--accent-dark)' }}>📚 북튜닝 (Book Tuning) 공식 사용자 가이드</h2>
               </div>
               <button className="ghost-button" onClick={() => setShowTutorialModal(false)}>닫기</button>
@@ -1235,13 +1270,13 @@ export default function Home() {
                   <h4 className="font-bold text-amber-800">💡 카카오 + 국립중앙도서관 API (추천 하이브리드 모드)</h4>
                   <ul className="list-disc pl-5 space-y-1 text-xs">
                     <li><strong>작동 원리:</strong> 카카오 Book API를 이용해 도서 제목, 저자, 출판사, 표지, 책 소개를 실시간으로 검색하고, 카카오에서 제공하지 않는 <b>전체 쪽수</b>는 ISBN을 바탕으로 <b>국립중앙도서관 서지정보 API</b>에서 자동으로 보완하여 불러옵니다.</li>
-                    <li><strong>국립중앙도서관 API 키:</strong> 국립중앙도서관 Open API 이용안내 페이지에서 <code>cert_key</code>를 무료로 발급받아 환경변수에 넣으시면 쪽수가 100% 자동 파싱됩니다. 미입력 시에도 수동 입력이 지원됩니다.</li>
+                    <li><strong>알라딘 & 네이버 검색:</strong> [⚙️ 설정] 메뉴에서 알라딘 TTB 검색(쪽수 자동 지원) 또는 네이버 도서 검색으로 자유롭게 전환하여 사용할 수 있습니다.</li>
                   </ul>
                 </div>
               </div>
 
               <div>
-                <h3 className="font-bold text-base text-amber-900 border-l-4 border-amber-800 pl-2 mb-2">📝 3. 독서 기록하기 & 타임라인 (v4.2 신기능)</h3>
+                <h3 className="font-bold text-base text-amber-900 border-l-4 border-amber-800 pl-2 mb-2">📝 3. 독서 기록하기 & 타임라인 (v4.3 신기능)</h3>
                 <ul className="list-disc pl-5 space-y-1">
                   <li><strong>📅 진도 기록:</strong> 읽은 날짜, 현재까지 누적해서 읽은 페이지 수, 간단한 소감을 남깁니다.</li>
                   <li><strong>💡 인사이트 (문장 수집 & 사진 OCR):</strong>
@@ -1290,14 +1325,23 @@ export default function Home() {
             </div>
             <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-2 text-xs leading-relaxed text-stone-700">
               <div className="border-b pb-3">
-                <h4 className="font-bold text-sm text-amber-900 mb-1">v4.2 (노션 단독 백엔드 완전 이관)</h4>
+                <h4 className="font-bold text-sm text-amber-900 mb-1">v4.3 (현재 버전 - 노션 단독 백엔드 완전 이관)</h4>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li>구글 시트를 완전히 제거하고 노션 데이터베이스 4종(도서, 독서일지, 문장수집, 사용자)을 단독 Primary DB로 완전 이관</li>
+                  <li>사용자 DB 신설 및 관계형(Relation) 연결을 통한 동명이인 식별 보장</li>
+                  <li>도서 검색 API 선택 기능 복원 (카카오+국립중앙도서관, 알라딘, 네이버 자유 선택)</li>
+                  <li>푸터에 '노션 데이터베이스 열기 ↗' 바로가기 알약 버튼 복원</li>
+                  <li>브라우저 탭 파비콘, 앱 로고 아이콘 및 모바일 홈 화면 추가(PWA) 지원</li>
+                </ul>
+              </div>
+
+              <div className="border-b pb-3">
+                <h4 className="font-bold text-sm text-stone-800 mb-1">v4.2</h4>
                 <ul className="list-disc pl-5 space-y-0.5">
                   <li>문장수집(인사이트) 페이지 번호를 진도율 계산에 통합 반영 (진도기록과 문장수집 중 더 큰 쪽수 기준 자동 계산)</li>
                   <li>문장수집 시 도서 본문 및 손글씨 메모 사진 첨부(업로드) 기능 추가</li>
                   <li>Google Gemini AI 기반 실시간 OCR(문자 인식) 텍스트 자동 추출 및 손쉬운 편집 기능 지원</li>
                   <li>노션(Notion) 문장수집 데이터베이스 동기화 시 업로드된 사진을 페이지 본문 이미지 블록으로 자동 첨부</li>
-                  <li>구글 시트를 완전히 제거하고 노션 데이터베이스 4종(도서, 독서일지, 문장수집, 사용자)을 단독 Primary DB로 완전 이관</li>
-                  <li>사용자 DB 신설 및 관계형(Relation) 연결을 통한 동명이인 식별 보장</li>
                 </ul>
               </div>
 
