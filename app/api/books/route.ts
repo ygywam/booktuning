@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { notion, BOOK_DB_ID } from '@/lib/notion';
+// 기존: import { notion, BOOK_DB_ID } from '@/lib/notion';
+import { notion, BOOK_DB_ID } from '../../../lib/notion';
 
 // 1. 노션 DB에서 도서 목록 조회
 export async function GET() {

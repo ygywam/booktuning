@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { notion } from '@/lib/notion';
+// 기존: import { notion } from '@/lib/notion';
+import { notion } from '../../../lib/notion';
 
 export async function POST(request: Request) {
   try {

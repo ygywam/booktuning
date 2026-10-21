@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { notion, INSIGHT_DB_ID } from '@/lib/notion';
+// 기존: import { notion, INSIGHT_DB_ID } from '@/lib/notion';
+import { notion, INSIGHT_DB_ID } from '../../../lib/notion';
 
 export async function POST(request: Request) {
   try {
