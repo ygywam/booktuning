@@ -179,10 +179,21 @@ export async function POST(request: Request) {
 // 3. 도서 수정 (PUT)
 export async function PUT(request: Request) {
   try {
-    const { bookId, title, author, publisher, totalPages, description, coverUrl, checkbox } = await request.json();
+    const { bookId, nickname, title, author, publisher, totalPages, description, coverUrl, checkbox } = await request.json();
 
     if (!bookId) {
       return NextResponse.json({ ok: false, error: '수정할 도서 ID가 필요합니다.' }, { status: 400 });
+    }
+
+    // 소유자 검증 (본인이 등록한 책만 수정 가능)
+    try {
+      const existingPage: any = await notion.pages.retrieve({ page_id: bookId });
+      const bookOwner = existingPage.properties['기록자']?.rich_text[0]?.plain_text || '';
+      if (bookOwner && nickname && bookOwner.trim() !== nickname.trim()) {
+        return NextResponse.json({ ok: false, error: `본인이 등록한 도서만 수정할 수 있습니다. (등록자: ${bookOwner})` }, { status: 403 });
+      }
+    } catch (e: any) {
+      console.warn('도서 소유자 확인 오류:', e.message);
     }
 
     const properties: any = {};
@@ -217,18 +228,59 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const bookId = searchParams.get('bookId');
+    const nickname = searchParams.get('nickname');
 
     if (!bookId) {
       return NextResponse.json({ ok: false, error: '삭제할 도서 ID가 필요합니다.' }, { status: 400 });
     }
 
-    // 노션에서는 페이지를 archive 처리하면 휴지통/삭제로 이동됨
+    // 소유자 검증 (본인이 등록한 책만 삭제 가능)
+    try {
+      const existingPage: any = await notion.pages.retrieve({ page_id: bookId });
+      const bookOwner = existingPage.properties['기록자']?.rich_text[0]?.plain_text || '';
+      if (bookOwner && nickname && bookOwner.trim() !== nickname.trim()) {
+        return NextResponse.json({ ok: false, error: `본인이 등록한 도서만 삭제할 수 있습니다. (등록자: ${bookOwner})` }, { status: 403 });
+      }
+    } catch (e: any) {
+      console.warn('도서 소유자 확인 오류:', e.message);
+    }
+
+    // 1) 연관된 독서일지와 문장수집 함께 노션에서 아카이브 (휴지통 이동)
+    if (LOG_DB_ID) {
+      try {
+        const relatedLogs = await notion.databases.query({
+          database_id: LOG_DB_ID,
+          filter: { property: '관련 책', relation: { contains: bookId } },
+        });
+        for (const log of relatedLogs.results) {
+          await notion.pages.update({ page_id: log.id, archived: true });
+        }
+      } catch (e) {
+        console.warn('연관 독서일지 아카이브 오류:', e);
+      }
+    }
+
+    if (INSIGHT_DB_ID) {
+      try {
+        const relatedInsights = await notion.databases.query({
+          database_id: INSIGHT_DB_ID,
+          filter: { property: '관련 책', relation: { contains: bookId } },
+        });
+        for (const ins of relatedInsights.results) {
+          await notion.pages.update({ page_id: ins.id, archived: true });
+        }
+      } catch (e) {
+        console.warn('연관 문장수집 아카이브 오류:', e);
+      }
+    }
+
+    // 2) 노션 도서 페이지 아카이브 처리 (노션 휴지통으로 이동되어 뷰에서 완전 삭제)
     await notion.pages.update({
       page_id: bookId,
       archived: true,
     });
 
-    return NextResponse.json({ ok: true, message: '도서가 삭제(아카이브)되었습니다.' });
+    return NextResponse.json({ ok: true, message: '도서와 연관 기록이 노션에서 안전하게 삭제(아카이브)되었습니다.' });
   } catch (error: any) {
     console.error('도서 삭제 실패:', error);
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });

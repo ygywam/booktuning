@@ -10,6 +10,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'INSIGHT_DB_ID 또는 책 ID가 누락되었습니다.' }, { status: 400 });
     }
 
+    // 보안 검증: 본인이 등록한 도서에만 문장 수집 가능
+    try {
+      const bookPage: any = await notion.pages.retrieve({ page_id: bookNotionPageId });
+      const bookOwner = bookPage.properties['기록자']?.rich_text[0]?.plain_text || '';
+      if (bookOwner && nickname && bookOwner.trim() !== nickname.trim()) {
+        return NextResponse.json({
+          ok: false,
+          error: `본인이 등록한 도서에만 문장을 수집할 수 있습니다. (도서 등록자: ${bookOwner})`,
+        }, { status: 403 });
+      }
+    } catch (e: any) {
+      console.warn('도서 소유자 확인 오류:', e.message);
+    }
+
     const today = new Date().toISOString().split('T')[0];
 
     const payload: any = {
@@ -66,10 +80,21 @@ export async function POST(request: Request) {
 // 2. 문장수집 수정 (PUT)
 export async function PUT(request: Request) {
   try {
-    const { pageLogId, page, notes } = await request.json();
+    const { pageLogId, nickname, page, notes } = await request.json();
 
     if (!pageLogId) {
       return NextResponse.json({ ok: false, error: '수정할 pageLogId가 필요합니다.' }, { status: 400 });
+    }
+
+    // 소유자 검증
+    try {
+      const existingIns: any = await notion.pages.retrieve({ page_id: pageLogId });
+      const insOwner = existingIns.properties['기록자']?.rich_text[0]?.plain_text || '';
+      if (insOwner && nickname && insOwner.trim() !== nickname.trim()) {
+        return NextResponse.json({ ok: false, error: '본인이 작성한 문장 수집만 수정할 수 있습니다.' }, { status: 403 });
+      }
+    } catch (e: any) {
+      console.warn('문장수집 소유자 확인 오류:', e.message);
     }
 
     const properties: any = {};
@@ -93,9 +118,21 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const pageLogId = searchParams.get('pageLogId');
+    const nickname = searchParams.get('nickname');
 
     if (!pageLogId) {
       return NextResponse.json({ ok: false, error: '삭제할 pageLogId가 필요합니다.' }, { status: 400 });
+    }
+
+    // 소유자 검증
+    try {
+      const existingIns: any = await notion.pages.retrieve({ page_id: pageLogId });
+      const insOwner = existingIns.properties['기록자']?.rich_text[0]?.plain_text || '';
+      if (insOwner && nickname && insOwner.trim() !== nickname.trim()) {
+        return NextResponse.json({ ok: false, error: '본인이 작성한 문장 수집만 삭제할 수 있습니다.' }, { status: 403 });
+      }
+    } catch (e: any) {
+      console.warn('문장수집 소유자 확인 오류:', e.message);
     }
 
     await notion.pages.update({
@@ -103,7 +140,7 @@ export async function DELETE(request: Request) {
       archived: true,
     });
 
-    return NextResponse.json({ ok: true, message: '문장 수집이 삭제되었습니다.' });
+    return NextResponse.json({ ok: true, message: '문장 수집이 삭제(아카이브)되었습니다.' });
   } catch (error: any) {
     console.error('문장 수집 삭제 오류:', error);
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
