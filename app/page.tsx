@@ -941,9 +941,9 @@ export default function Home() {
         </a>
       </div>
 
-      {/* 5. 푸터 (이미지 2 복원) */}
+      {/* 5. 푸터 */}
       <footer className="app-footer">
-        <p>Made by <strong>기록조율사 조용희</strong> <a href="https://www.instagram.com/record_tuner/" target="_blank">@record_tuner</a></p>
+        <p>만든이. <strong>기록조율사 서울외고 조용희</strong> <a href="https://www.instagram.com/record_tuner/" target="_blank">@record_tuner</a></p>
         <p style={{ marginTop: '10px' }}>
           <a href="#" onClick={(e) => { e.preventDefault(); setShowPrivacyModal(true); }} style={{ fontSize: '13px', marginRight: '14px' }}>개인정보처리방침</a>
           <a href="#" onClick={(e) => { e.preventDefault(); setShowCopyrightModal(true); }} style={{ fontSize: '13px', marginRight: '14px' }}>저작권 및 이용 안내</a>
