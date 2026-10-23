@@ -357,35 +357,67 @@ export default function Home() {
   };
 
   // 11. 문장 수집 등록/수정 & OCR
+  const compressImage = (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          } else {
+            resolve(e.target?.result as string);
+          }
+        };
+        img.onerror = () => resolve(e.target?.result as string);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleOcrImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64Data = reader.result as string;
-      setInsightImageUrl(base64Data);
-      setOcrLoading(true);
-      try {
-        const res = await fetch('/api/ocr', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ base64Data, mimeType: file.type }),
-        });
-        const data = await res.json();
-        if (data.ok && data.ocrText) {
-          setInsightNotes((prev) => (prev ? `${prev}\n\n${data.ocrText}` : data.ocrText));
-          alert('Gemini AI가 사진에서 문장을 성공적으로 추출했습니다! ✨');
-        } else {
-          alert('문장 추출 실패 또는 글자를 찾지 못했습니다.');
-        }
-      } catch (err) {
-        alert('OCR 통신 오류 발생');
-      } finally {
-        setOcrLoading(false);
+    setOcrLoading(true);
+    try {
+      const base64Data = await compressImage(file);
+      if (!base64Data) {
+        alert('이미지를 읽을 수 없습니다.');
+        return;
       }
-    };
-    reader.readAsDataURL(file);
+      setInsightImageUrl(base64Data);
+
+      const res = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64Data, mimeType: 'image/jpeg' }),
+      });
+      const data = await res.json();
+      if (data.ok && data.ocrText) {
+        setInsightNotes((prev) => (prev ? `${prev}\n\n${data.ocrText}` : data.ocrText));
+        alert('Gemini AI가 사진에서 문장을 성공적으로 추출했습니다! ✨');
+      } else {
+        alert('문장 추출 실패 또는 글자를 찾지 못했습니다.');
+      }
+    } catch (err) {
+      alert('OCR 통신 오류 발생');
+    } finally {
+      setOcrLoading(false);
+    }
   };
 
   const handleSubmitInsight = async (e: React.FormEvent) => {

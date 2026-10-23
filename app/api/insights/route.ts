@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { notion, INSIGHT_DB_ID } from '../../../lib/notion';
+import { notion, INSIGHT_DB_ID, findUserIdByNickname, uploadImageToNotion } from '../../../lib/notion';
 
 // 1. 문장수집 등록 (POST)
 export async function POST(request: Request) {
@@ -40,31 +40,62 @@ export async function POST(request: Request) {
       payload.properties['기록자'] = { rich_text: [{ text: { content: nickname } }] };
     }
 
-    if (userId) {
-      payload.properties['사용자'] = { relation: [{ id: userId }] };
+    // 사용자 DB relation 연결: userId가 없으면 nickname으로 자동 조회
+    let targetUserId = userId;
+    if (!targetUserId && nickname) {
+      targetUserId = await findUserIdByNickname(nickname);
     }
 
-    // 사진 첨부 시 노션 본문에 이미지 블록 생성
-    if (imageUrl && String(imageUrl).startsWith('http')) {
-      payload.children = [
-        {
-          object: 'block',
-          type: 'image',
-          image: {
-            type: 'external',
-            external: { url: imageUrl },
-          },
-        },
-      ];
+    if (targetUserId) {
+      payload.properties['[북튜닝] 사용자 DB'] = { relation: [{ id: targetUserId }] };
+    }
+
+    // 사진 첨부 시 노션 본문에 이미지 블록 생성 (Base64는 노션 공식 file_uploads 사용, HTTP URL은 external 사용)
+    if (imageUrl) {
+      try {
+        if (String(imageUrl).startsWith('data:')) {
+          const fileUploadId = await uploadImageToNotion(imageUrl);
+          payload.children = [
+            {
+              object: 'block',
+              type: 'image',
+              image: {
+                type: 'file_upload',
+                file_upload: { id: fileUploadId },
+              },
+            },
+          ];
+        } else if (String(imageUrl).startsWith('http')) {
+          payload.children = [
+            {
+              object: 'block',
+              type: 'image',
+              image: {
+                type: 'external',
+                external: { url: imageUrl },
+              },
+            },
+          ];
+        }
+      } catch (imgErr: any) {
+        console.warn('문장 수집 사진 노션 업로드 실패 (텍스트 저장은 계속 진행):', imgErr.message);
+      }
     }
 
     let response;
     try {
       response = await notion.pages.create(payload);
     } catch (createErr: any) {
-      if (payload.properties['사용자']) {
-        delete payload.properties['사용자'];
-        response = await notion.pages.create(payload);
+      // '[북튜닝] 사용자 DB' 속성명이 아닌 '사용자' 속성명일 경우 폴백
+      if (payload.properties['[북튜닝] 사용자 DB']) {
+        delete payload.properties['[북튜닝] 사용자 DB'];
+        payload.properties['사용자'] = { relation: [{ id: targetUserId }] };
+        try {
+          response = await notion.pages.create(payload);
+        } catch (e) {
+          delete payload.properties['사용자'];
+          response = await notion.pages.create(payload);
+        }
       } else {
         throw createErr;
       }

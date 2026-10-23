@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { notion, LOG_DB_ID } from '../../../lib/notion';
+import { notion, LOG_DB_ID, findUserIdByNickname } from '../../../lib/notion';
 
 // 1. 독서일지 등록 (POST)
 export async function POST(request: Request) {
@@ -38,17 +38,30 @@ export async function POST(request: Request) {
       payload.properties['기록자'] = { rich_text: [{ text: { content: nickname } }] };
     }
 
-    if (userId) {
-      payload.properties['사용자'] = { relation: [{ id: userId }] };
+    // 사용자 DB relation 연결: userId가 없으면 nickname으로 자동 조회
+    let targetUserId = userId;
+    if (!targetUserId && nickname) {
+      targetUserId = await findUserIdByNickname(nickname);
+    }
+
+    if (targetUserId) {
+      payload.properties['[북튜닝] 사용자 DB'] = { relation: [{ id: targetUserId }] };
     }
 
     let response;
     try {
       response = await notion.pages.create(payload);
     } catch (createErr: any) {
-      if (payload.properties['사용자']) {
-        delete payload.properties['사용자'];
-        response = await notion.pages.create(payload);
+      // '[북튜닝] 사용자 DB' 속성명이 아닌 '사용자' 속성명일 경우 폴백
+      if (payload.properties['[북튜닝] 사용자 DB']) {
+        delete payload.properties['[북튜닝] 사용자 DB'];
+        payload.properties['사용자'] = { relation: [{ id: targetUserId }] };
+        try {
+          response = await notion.pages.create(payload);
+        } catch (e) {
+          delete payload.properties['사용자'];
+          response = await notion.pages.create(payload);
+        }
       } else {
         throw createErr;
       }
