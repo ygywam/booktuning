@@ -1000,17 +1000,19 @@ export default function Home() {
         )}
       </section>
 
-      {/* 4. 노션 데이터베이스 열기 알약 버튼 */}
-      <div className="notion-outlink-container">
-        <a
-          href="https://app.notion.com/p/record-tuner/3699a4211895805181aed93dbd6ca10a"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="notion-outlink-btn"
-        >
-          <span>📋</span> 노션 데이터베이스 열기 ↗
-        </a>
-      </div>
+      {/* 4. 노션 데이터베이스 열기 알약 버튼 (환경변수 설정 시에만 안전하게 표시) */}
+      {process.env.NEXT_PUBLIC_NOTION_DATABASE_URL && (
+        <div className="notion-outlink-container">
+          <a
+            href={process.env.NEXT_PUBLIC_NOTION_DATABASE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="notion-outlink-btn"
+          >
+            <span>📋</span> 노션 데이터베이스 열기 ↗
+          </a>
+        </div>
+      )}
 
       {/* 5. 푸터 */}
       <footer className="app-footer">

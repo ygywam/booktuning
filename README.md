@@ -7,7 +7,7 @@
 [![Notion API](https://img.shields.io/badge/Notion%20API-v2.2-white?logo=notion)](https://developers.notion.com/)
 [![Gemini 2.5 Flash](https://img.shields.io/badge/Google%20Gemini-AI%20OCR%20%26%20Report-blue?logo=google)](https://aistudio.google.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fygywam%2Fbooktuning&env=NOTION_API_KEY,NOTION_BOOK_DB_ID,NOTION_LOG_DB_ID,NOTION_INSIGHT_DB_ID,NOTION_USER_DB_ID,GEMINI_API_KEY&envDescription=%EB%85%B8%EC%85%98%20API%20%ED%86%A0%ED%81%B0%EA%B3%BC%20%EB%8D%B0%EC%9D%B4%ED%84%B0%EB%B2%A0%EC%9D%B4%EC%8A%A4%2032%EC%9E%90%EB%A6%AC%20ID%20%EB%B0%8F%20Gemini%20API%20%ED%82%A4%EB%5B%ED%95%84%EC%88%98%5D%EB%A5%BC%20%EC%9E%85%EB%A0%A5%ED%95%98%EC%84%B8%EC%9A%94&envLink=https%3A%2F%2Fgithub.com%2Fygywam%2Fbooktuning%23step-2-%EB%85%B8%EC%85%98notion-%ED%85%9C%ED%94%8C%EB%A6%BF-%EB%B3%B5%EC%A0%9C-%EB%B0%8F-api-%ED%82%A4-%EB%B0%9C%EA%B8%89)
 
 ---
 
@@ -103,6 +103,11 @@
 
 ### STEP 3. Vercel 원클릭 클라우드 배포
 
+가장 간편한 방법은 아래 **[Deploy with Vercel]** 버튼을 누르는 것입니다. 클릭 한 번으로 저장소 복제부터 필수 환경변수 입력 안내까지 한 번에 진행됩니다:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fygywam%2Fbooktuning&env=NOTION_API_KEY,NOTION_BOOK_DB_ID,NOTION_LOG_DB_ID,NOTION_INSIGHT_DB_ID,NOTION_USER_DB_ID,GEMINI_API_KEY&envDescription=%EB%85%B8%EC%85%98%20API%20%ED%86%A0%ED%81%B0%EA%B3%BC%20%EB%8D%B0%EC%9D%B4%ED%84%B0%EB%B2%A0%EC%9D%B4%EC%8A%A4%2032%EC%9E%90%EB%A6%AC%20ID%20%EB%B0%8F%20Gemini%20API%20%ED%82%A4%EB%5B%ED%95%84%EC%88%98%5D%EB%A5%BC%20%EC%9E%85%EB%A0%A5%ED%95%98%EC%84%B8%EC%9A%94&envLink=https%3A%2F%2Fgithub.com%2Fygywam%2Fbooktuning%23step-2-%EB%85%B8%EC%85%98notion-%ED%85%9C%ED%94%8C%EB%A6%BF-%EB%B3%B5%EC%A0%9C-%EB%B0%8F-api-%ED%82%A4-%EB%B0%9C%EA%B8%89)
+
+*(또는 Vercel 대시보드에서 직접 가져올 경우)*:
 1. [Vercel](https://vercel.com/)에 로그인하고 **[Add New...]** ➔ **[Project]**를 클릭합니다.
 2. STEP 1에서 Fork한 본인의 `book-tuning` 저장소를 찾아 **[Import]**를 클릭합니다.
 3. **Environment Variables** 토글을 열고 아래 환경 변수들을 입력합니다:
@@ -120,6 +125,10 @@
 | `ALADIN_API_KEY` | [알라딘 TTB](https://www.aladin.co.kr/ttb/wmain.aspx) 인증키 | 선택 (알라딘 검색) |
 | `NAVER_CLIENT_ID` | [네이버 Developers](https://developers.naver.com/) Client ID | 선택 (네이버 검색) |
 | `NAVER_CLIENT_SECRET` | 네이버 개발자 Client Secret | 선택 (네이버 검색) |
+| `NEXT_PUBLIC_NOTION_DATABASE_URL` | 푸터의 '노션 데이터베이스 열기 ↗' 바로가기 웹 링크 (비워두면 버튼 자동 숨김) | 선택 (개인정보 보호) |
+
+> 💡 **노션 바로가기 버튼 안내**:  
+> 웹앱 하단의 `노션 데이터베이스 열기 ↗` 버튼 링크는 코드에 하드코딩되지 않고 `NEXT_PUBLIC_NOTION_DATABASE_URL` 환경변수를 통해서만 동작합니다. 이 값을 비워두면 버튼 자체가 화면에서 사라지므로, 개인 노션 주소가 외부에 노출되지 않습니다.
 
 > 💡 **꿀팁**: 프로젝트 루트의 `.env.example` 형식대로 키=값을 메모장에 복사한 뒤, Vercel 첫 번째 Key 칸에 붙여넣으면 Vercel이 모든 항목을 자동으로 인식해 일괄 채워줍니다!
 
