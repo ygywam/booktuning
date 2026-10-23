@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { notion, LOG_DB_ID, findUserIdByNickname } from '../../../lib/notion';
+import { notion, LOG_DB_ID, findUserIdByNickname, uploadImageToNotion } from '../../../lib/notion';
 
 // 1. 독서일지 등록 (POST)
 export async function POST(request: Request) {
   try {
-    const { bookNotionPageId, readDate, readPages, note, nickname, userId } = await request.json();
+    const { bookNotionPageId, readDate, readPages, note, nickname, userId, imageUrl } = await request.json();
 
     if (!LOG_DB_ID || !bookNotionPageId) {
       return NextResponse.json({ ok: false, error: '필수 설정값(LOG_DB_ID 또는 책 ID)이 부족합니다.' }, { status: 400 });
@@ -46,6 +46,38 @@ export async function POST(request: Request) {
 
     if (targetUserId) {
       payload.properties['[북튜닝] 사용자 DB'] = { relation: [{ id: targetUserId }] };
+    }
+
+    // 사진 첨부 시 노션 본문에 이미지 블록 생성 (Base64는 노션 공식 file_uploads 사용, HTTP URL은 external 사용)
+    if (imageUrl) {
+      try {
+        if (String(imageUrl).startsWith('data:')) {
+          const fileUploadId = await uploadImageToNotion(imageUrl);
+          payload.children = [
+            {
+              object: 'block',
+              type: 'image',
+              image: {
+                type: 'file_upload',
+                file_upload: { id: fileUploadId },
+              },
+            },
+          ];
+        } else if (String(imageUrl).startsWith('http')) {
+          payload.children = [
+            {
+              object: 'block',
+              type: 'image',
+              image: {
+                type: 'external',
+                external: { url: imageUrl },
+              },
+            },
+          ];
+        }
+      } catch (imgErr: any) {
+        console.warn('진도 기록 사진 노션 업로드 실패 (텍스트 저장은 계속 진행):', imgErr.message);
+      }
     }
 
     let response;

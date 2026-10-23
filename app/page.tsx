@@ -50,6 +50,8 @@ export default function Home() {
   const [readDate, setReadDate] = useState('');
   const [readPages, setReadPages] = useState<number | ''>('');
   const [note, setNote] = useState('');
+  const [logImageUrl, setLogImageUrl] = useState('');
+  const [logOcrLoading, setLogOcrLoading] = useState(false);
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
 
   const [insightPage, setInsightPage] = useState('');
@@ -338,6 +340,7 @@ export default function Home() {
             readDate,
             readPages: Number(readPages),
             note,
+            imageUrl: logImageUrl,
             nickname: nickname.trim(),
             userId: user?.id,
           }),
@@ -347,6 +350,7 @@ export default function Home() {
           alert('오늘의 독서 진도가 노션에 기록되었습니다! 📖');
           setShowLogModal(false);
           setNote('');
+          setLogImageUrl('');
           fetchTimeline(selectedBook.bookId);
           fetchBooks();
         } else alert(`저장 실패: ${data.error}`);
@@ -356,7 +360,7 @@ export default function Home() {
     }
   };
 
-  // 11. 문장 수집 등록/수정 & OCR
+  // 11. 사진 압축 & OCR (진도 기록 & 문장 수집 공용)
   const compressImage = (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -388,6 +392,40 @@ export default function Home() {
     });
   };
 
+  // 진도 기록용 사진 OCR
+  const handleLogOcrImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setLogOcrLoading(true);
+    try {
+      const base64Data = await compressImage(file);
+      if (!base64Data) {
+        alert('이미지를 읽을 수 없습니다.');
+        return;
+      }
+      setLogImageUrl(base64Data);
+
+      const res = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64Data, mimeType: 'image/jpeg' }),
+      });
+      const data = await res.json();
+      if (data.ok && data.ocrText) {
+        setNote((prev) => (prev ? `${prev}\n\n${data.ocrText}` : data.ocrText));
+        alert('Gemini AI가 사진에서 감상/문장을 성공적으로 추출했습니다! ✨');
+      } else {
+        alert('문장 추출 실패 또는 글자를 찾지 못했습니다.');
+      }
+    } catch (err) {
+      alert('OCR 통신 오류 발생');
+    } finally {
+      setLogOcrLoading(false);
+    }
+  };
+
+  // 문장 수집용 사진 OCR
   const handleOcrImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -921,6 +959,7 @@ export default function Home() {
                               setEditingLogId(null);
                               setReadPages(book.readPages || '');
                               setNote('');
+                              setLogImageUrl('');
                               setShowLogModal(true);
                             }}
                           >
@@ -1137,68 +1176,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* 3. 진도 기록 모달 */}
-      {showLogModal && selectedBook && (
-        <div className="modal">
-          <div className="modal-backdrop" onClick={() => setShowLogModal(false)}></div>
-          <div className="modal-card">
-            <div className="section-title-row">
-              <div>
-                <h2>{editingLogId ? '진도 기록 수정' : '진도 기록 추가'}</h2>
-                <p className="subtitle">{selectedBook.title}</p>
-              </div>
-              <button className="ghost-button" onClick={() => setShowLogModal(false)}>닫기</button>
-            </div>
-            <form onSubmit={handleSubmitLog} className="space-y-3">
-              <label>읽은 날짜<input type="date" value={readDate} onChange={(e) => setReadDate(e.target.value)} required /></label>
-              <label>현재까지 읽은 누적 페이지수 (쪽)
-                <input type="number" min="0" max={selectedBook.totalPages || 9999} value={readPages} onChange={(e) => setReadPages(Number(e.target.value))} required />
-              </label>
-              <label>간단한 감상 및 요약 메모<textarea rows={4} value={note} onChange={(e) => setNote(e.target.value)} placeholder="오늘 읽은 분량의 생각이나 핵심을 자유롭게 적어보세요..."></textarea></label>
-              <div className="text-right mt-4"><button type="submit">기록 저장 (노션 동기화)</button></div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 4. 문장 수집 모달 + 📷 사진 OCR */}
-      {showInsightModal && selectedBook && (
-        <div className="modal">
-          <div className="modal-backdrop" onClick={() => setShowInsightModal(false)}></div>
-          <div className="modal-card">
-            <div className="section-title-row">
-              <div>
-                <h2>{editingPageLogId ? '문장 수집 수정' : '인사이트(문장) 수집'}</h2>
-                <p className="subtitle">{selectedBook.title}</p>
-              </div>
-              <button className="ghost-button" onClick={() => setShowInsightModal(false)}>닫기</button>
-            </div>
-            <form onSubmit={handleSubmitInsight} className="space-y-3">
-              <label>해당 페이지 번호<input type="text" placeholder="예: 105" value={insightPage} onChange={(e) => setInsightPage(e.target.value)} required /></label>
-              
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
-                <span className="text-xs font-bold text-amber-900">📷 책 페이지 또는 손글씨 사진 첨부 (AI 자동 추출)</span>
-                <input type="file" accept="image/*" onChange={handleOcrImageUpload} className="text-xs" />
-                {ocrLoading && <p className="text-xs text-amber-700 animate-pulse">🤖 Gemini AI가 사진 속 문장을 읽어내는 중입니다...</p>}
-                {insightImageUrl && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <img src={insightImageUrl} alt="미리보기" className="w-16 h-16 object-cover rounded border" />
-                    <button type="button" className="ghost-button text-xs py-1 px-2" onClick={() => setInsightImageUrl('')}>사진 취소</button>
-                  </div>
-                )}
-              </div>
-
-              <label>발췌 문장 및 나의 생각
-                <textarea rows={5} placeholder="문장을 직접 입력하거나 사진을 업로드해 텍스트를 추출하세요..." value={insightNotes} onChange={(e) => setInsightNotes(e.target.value)} required></textarea>
-              </label>
-
-              <div className="text-right mt-4"><button type="submit">인사이트 저장</button></div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 5. 도서 상세 기록 (통합 타임라인, AI 감상문, 나의 감상문) */}
+      {/* 3. 도서 상세 기록 (통합 타임라인, AI 감상문, 나의 감상문) */}
       {showDetailModal && selectedBook && (
         <div className="modal">
           <div className="modal-backdrop" onClick={() => setShowDetailModal(false)}></div>
@@ -1259,6 +1237,7 @@ export default function Home() {
                         setEditingLogId(null);
                         setReadPages(selectedBook.readPages || '');
                         setNote('');
+                        setLogImageUrl('');
                         setShowLogModal(true);
                       }}
                     >
@@ -1403,9 +1382,86 @@ export default function Home() {
         </div>
       )}
 
-      {/* 6. 도서 수정/삭제 모달 */}
+      {/* 4. 진도 기록 모달 + 📷 사진 OCR (서브 모달 z-index 10050) */}
+      {showLogModal && selectedBook && (
+        <div className="modal modal-sub" style={{ zIndex: 10050 }}>
+          <div className="modal-backdrop" onClick={() => { setShowLogModal(false); setLogImageUrl(''); }}></div>
+          <div className="modal-card">
+            <div className="section-title-row">
+              <div>
+                <h2>{editingLogId ? '진도 기록 수정' : '진도 기록 추가'}</h2>
+                <p className="subtitle">{selectedBook.title}</p>
+              </div>
+              <button className="ghost-button" onClick={() => { setShowLogModal(false); setLogImageUrl(''); }}>닫기</button>
+            </div>
+            <form onSubmit={handleSubmitLog} className="space-y-3">
+              <label>읽은 날짜<input type="date" value={readDate} onChange={(e) => setReadDate(e.target.value)} required /></label>
+              <label>현재까지 읽은 누적 페이지수 (쪽)
+                <input type="number" min="0" max={selectedBook.totalPages || 9999} value={readPages} onChange={(e) => setReadPages(Number(e.target.value))} required />
+              </label>
+
+              {/* 📷 사진 첨부 & OCR 기능 */}
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+                <span className="text-xs font-bold text-amber-900">📷 책 페이지 또는 메모 사진 첨부 (AI 감상/요약 추출)</span>
+                <input type="file" accept="image/*" onChange={handleLogOcrImageUpload} className="text-xs" />
+                {logOcrLoading && <p className="text-xs text-amber-700 animate-pulse">🤖 Gemini AI가 사진 속 문장을 읽어내는 중입니다...</p>}
+                {logImageUrl && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <img src={logImageUrl} alt="미리보기" className="w-16 h-16 object-cover rounded border" />
+                    <button type="button" className="ghost-button text-xs py-1 px-2" onClick={() => setLogImageUrl('')}>사진 취소</button>
+                  </div>
+                )}
+              </div>
+
+              <label>간단한 감상 및 요약 메모
+                <textarea rows={4} value={note} onChange={(e) => setNote(e.target.value)} placeholder="오늘 읽은 분량의 생각이나 핵심을 자유롭게 적어보세요... 사진을 첨부하면 AI가 텍스트를 추출해 채워줍니다."></textarea>
+              </label>
+              <div className="text-right mt-4"><button type="submit">기록 저장 (노션 동기화)</button></div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 5. 문장 수집 모달 + 📷 사진 OCR (서브 모달 z-index 10050) */}
+      {showInsightModal && selectedBook && (
+        <div className="modal modal-sub" style={{ zIndex: 10050 }}>
+          <div className="modal-backdrop" onClick={() => setShowInsightModal(false)}></div>
+          <div className="modal-card">
+            <div className="section-title-row">
+              <div>
+                <h2>{editingPageLogId ? '문장 수집 수정' : '인사이트(문장) 수집'}</h2>
+                <p className="subtitle">{selectedBook.title}</p>
+              </div>
+              <button className="ghost-button" onClick={() => setShowInsightModal(false)}>닫기</button>
+            </div>
+            <form onSubmit={handleSubmitInsight} className="space-y-3">
+              <label>해당 페이지 번호<input type="text" placeholder="예: 105" value={insightPage} onChange={(e) => setInsightPage(e.target.value)} required /></label>
+              
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+                <span className="text-xs font-bold text-amber-900">📷 책 페이지 또는 손글씨 사진 첨부 (AI 자동 추출)</span>
+                <input type="file" accept="image/*" onChange={handleOcrImageUpload} className="text-xs" />
+                {ocrLoading && <p className="text-xs text-amber-700 animate-pulse">🤖 Gemini AI가 사진 속 문장을 읽어내는 중입니다...</p>}
+                {insightImageUrl && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <img src={insightImageUrl} alt="미리보기" className="w-16 h-16 object-cover rounded border" />
+                    <button type="button" className="ghost-button text-xs py-1 px-2" onClick={() => setInsightImageUrl('')}>사진 취소</button>
+                  </div>
+                )}
+              </div>
+
+              <label>발췌 문장 및 나의 생각
+                <textarea rows={5} placeholder="문장을 직접 입력하거나 사진을 업로드해 텍스트를 추출하세요..." value={insightNotes} onChange={(e) => setInsightNotes(e.target.value)} required></textarea>
+              </label>
+
+              <div className="text-right mt-4"><button type="submit">인사이트 저장</button></div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 6. 도서 수정/삭제 모달 (서브 모달 z-index 10050) */}
       {showEditBookModal && selectedBook && (
-        <div className="modal">
+        <div className="modal modal-sub" style={{ zIndex: 10050 }}>
           <div className="modal-backdrop" onClick={() => setShowEditBookModal(false)}></div>
           <div className="modal-card">
             <div className="section-title-row">

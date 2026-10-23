@@ -163,6 +163,11 @@ p { margin: 0; }
 .modal-card { position: relative; width: 100%; max-width: 480px; background: var(--panel); border-radius: 20px; padding: 20px; box-shadow: 0 20px 48px rgba(0,0,0,0.2); max-height: calc(100vh - 40px); overflow-y: auto; }
 .detail-modal-card { max-width: 680px; }
 
+/* 서브 모달 (도서 상세 모달 등 위에서 겹쳐 뜨는 2단계 모달) */
+.modal-sub { z-index: 10050 !important; }
+.modal-sub .modal-backdrop { background: rgba(47, 38, 31, 0.65) !important; backdrop-filter: blur(6px) !important; }
+.modal-sub .modal-card { box-shadow: 0 25px 60px rgba(0,0,0,0.35) !important; }
+
 .detail-tabs { display: flex; border-bottom: 2px solid var(--line); margin-bottom: 16px; gap: 4px; }
 .tab-btn { flex: 1; background: transparent; color: var(--muted); border-radius: 10px 10px 0 0; padding: 10px 4px; font-size: 13px; border: 1px solid transparent; cursor: pointer; text-align: center; }
 .tab-btn.active { background: var(--panel); color: var(--accent-dark); border-color: var(--line); font-weight: 800; border-bottom: none; }
