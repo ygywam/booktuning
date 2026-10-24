@@ -713,15 +713,26 @@ export default function Home() {
 
   return (
     <div className="app">
-      {/* 1. 상단 헤더 (아이콘 + v4.3 표기) */}
+      {/* 1. 상단 마스트헤드 */}
       <header className="app-header">
         <div>
-          <p className="eyebrow">{nickname ? `${nickname}님의 독서기록 v4.3 👑` : '북튜닝 독서기록 서재 v4.3 👑'}</p>
-          <div className="app-title-row">
+          <div
+            className="app-title-row"
+            onClick={() => {
+              setActiveTab('all');
+              setStatusFilter('all');
+            }}
+            style={{ cursor: 'pointer' }}
+            title="서재 홈으로 이동"
+          >
             <img src="/icon.svg" className="app-logo-icon" alt="북튜닝 로고" />
             <h1>북튜닝 (Book Tuning)</h1>
           </div>
-          <p className="subtitle">책을 읽고 기록하며 내 삶과 생각의 주파수를 맞춰가는 공간입니다.</p>
+          <p className="subtitle">
+            {nickname
+              ? `${nickname}님과 함께 읽고 기록하며 삶의 주파수를 맞춰가는 공유 서재입니다.`
+              : '책을 읽고 기록하며 내 삶과 생각의 주파수를 맞춰가는 공간입니다.'}
+          </p>
         </div>
         <div className="header-nav-row">
           <button
