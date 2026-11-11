@@ -183,59 +183,61 @@ body {
 }
 
 /* ==========================================================================
-   Typography & Inputs
+   Typography & Inputs (@layer base로 감싸 Tailwind 컴포넌트 유틸리티 우선 보장)
    ========================================================================== */
 
-button, input, textarea, select {
-  font: inherit;
-}
+@layer base {
+  button, input, textarea, select {
+    font: inherit;
+  }
 
-button {
-  border: 0;
-  border-radius: 12px;
-  padding: 10px 16px;
-  background: var(--accent);
-  color: white;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-  white-space: nowrap;
-}
-button:hover {
-  background: var(--accent-dark);
-  transform: translateY(-1px);
-}
-button:active {
-  transform: translateY(0);
-}
-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  transform: none !important;
-}
+  button {
+    border: 0;
+    border-radius: 12px;
+    padding: 10px 16px;
+    background: var(--accent);
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    white-space: nowrap;
+  }
+  button:hover {
+    background: var(--accent-dark);
+    transform: translateY(-1px);
+  }
+  button:active {
+    transform: translateY(0);
+  }
+  button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none !important;
+  }
 
-input, textarea, select {
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 11px 14px;
-  background: #ffffff;
-  color: var(--text);
-  outline: none;
-  font-size: 14px;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
-}
-input:focus, textarea:focus, select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
+  input, textarea, select {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 11px 14px;
+    background: #ffffff;
+    color: var(--text);
+    outline: none;
+    font-size: 14px;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
 
-label {
-  display: grid;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 700;
+  label {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+  }
 }
 
 /* ==========================================================================

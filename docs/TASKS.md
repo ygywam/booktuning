@@ -63,3 +63,11 @@
 - [x] 랭킹보드(Hall of Fame) 1~3위 앤틱 골드/빈티지 실버/브론즈 실링 왁스 인장 메달 적용
 - [x] 상단 인위적 배너 제거 및 출판 마스트헤드 타이포그래피 정돈 (`app/page.tsx`)
 - [x] 브라우저 표면 마감(커스텀 셀렉션, 웜톤 슬림 스크롤바, 캐럿 컬러) 및 Next.js 빌드 무결성 100% 통과
+
+## 8단계: AI 엔진(Gemini / EXAONE) 듀얼 선택 및 'Tuning Your Life' WebGL 입장 화면 구축
+- [x] shadcn UI 구조 정립 (`lib/utils.ts`, `components/ui/web-gl-shader.tsx`, `components/ui/liquid-glass-button.tsx`) 및 관련 패키지 설치
+- [x] Three.js WebGLShader 파동 배경 + `LiquidButton` 기반 `Tuning Your Life` 입장 화면 구현 (`components/LandingGate.tsx`)
+- [x] 비로그인 둘러보기, 노션 닉네임·4자리 PIN 즉시 입장, 상단 `[✨ 입장화면]` 전환 동선 구현
+- [x] AI 공용 모듈(`lib/ai.ts`) 및 키 상태 API(`/api/ai-status`) 구축 (`GEMINI_API_KEY`, `EXAONE_API_KEY` 서버 격리)
+- [x] `[⚙️ 설정]` 모달 AI 선택 UI(Google Gemini ↔ LG EXAONE `k-exaone_v2.5`) 및 감상문/OCR 엔진 연동
+- [x] 프로덕션 빌드(`npm run build`) 16개 라우트 통과 및 데스크톱/모바일 브라우저 스크린샷·콘솔 에러 0건 검증 완료

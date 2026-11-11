@@ -30,7 +30,7 @@
 | `체크박스` | checkbox | 완독 여부 플래그 |
 | `기록자` | rich_text | 등록자 닉네임 (기존 텍스트 호환 유지) |
 | `표지` | files (external) | 외부 표지 이미지 링크 |
-| 본문 블록 (Children) | Blocks | `✨ Gemini AI 감상문`, `✍️ 나의 독서 감상문` |
+| 본문 블록 (Children) | Blocks | `✨ Gemini AI 감상문` / `✨ EXAONE AI 감상문`, `✍️ 나의 독서 감상문` |
 
 ### (3) 독서일지 / 진도 DB (`NOTION_LOG_DB_ID`)
 | 프로퍼티명 | Notion 타입 | 설명 |
@@ -60,12 +60,12 @@ flowchart TD
     Client["브라우저 (React / Next.js Client)"]
     API["Next.js Server API Routes (/api/*)"]
     NotionAPI["Notion Official REST API"]
-    GeminiAPI["Google Gemini 2.5 Flash API"]
+    AIEngine["Google Gemini / LG EXAONE API"]
     BookSearchAPI["카카오 / 국립중앙도서관 API"]
 
     Client <-->|"JSON 통신"| API
     API <-->|"도서/진도/인사이트 CRUD & 쿼리"| NotionAPI
-    API <-->|"독후감 생성 & 이미지 OCR"| GeminiAPI
+    API <-->|"독후감 생성 & 이미지 OCR"| AIEngine
     API <-->|"도서 검색 & 정확한 쪽수 파싱"| BookSearchAPI
 ```
 
@@ -73,19 +73,29 @@ flowchart TD
 ```
 ├─ app/
 │  ├─ api/
+│  │  ├─ ai-report/       # Gemini / EXAONE 독후감 초안 생성 & 노션 첨부
+│  │  ├─ ai-status/       # 서버 AI API 키 연결 여부 조회 (비노출 boolean)
 │  │  ├─ books/           # 도서 목록 조회(진도율 계산), 등록, 수정, 삭제
 │  │  ├─ logs/            # 진도일지 등록, 수정, 삭제
-│  │  ├─ insights/        # 문장수집 등록, 수정, 삭제, OCR
+│  │  ├─ insights/        # 문장수집 등록, 수정, 삭제
+│  │  ├─ ocr/             # 사진 OCR 텍스트 추출 (Gemini / EXAONE)
 │  │  ├─ timeline/        # 도서별 전체 타임라인 및 본문 감상문 통합 조회
 │  │  ├─ like/            # 공감 토글
 │  │  ├─ my-report/       # 나의 감상문 노션 본문 블록 저장
 │  │  ├─ search-books/    # 도서 검색 + 국립중앙도서관 쪽수 연동
-│  │  └─ ai-report/       # Gemini 독후감 초안 생성 & 노션 첨부
-│  ├─ globals.css         # 북튜닝 원본 감성 CSS 스타일
+│  │  └─ users/           # 사용자 조회·생성 및 기존 데이터 마이그레이션
+│  ├─ globals.css         # 아틀리에 라이트 테마 및 Tailwind 레이어 스타일
 │  ├─ layout.tsx          # 메타데이터 및 폰트 래퍼
-│  └─ page.tsx            # 메인 풀스택 SPA 화면 (모달, 탭, 갤러리)
+│  └─ page.tsx            # 메인 풀스택 SPA 화면 (입장 게이트, 모달, 탭, 갤러리)
+├─ components/
+│  ├─ ui/
+│  │  ├─ web-gl-shader.tsx        # Three.js 파동 셰이더 배경
+│  │  └─ liquid-glass-button.tsx  # 리퀴드 글래스 & 메탈 버튼 UI
+│  └─ LandingGate.tsx     # 'Tuning Your Life' 입장 화면 (닉네임·PIN 로그인)
 ├─ lib/
+│  ├─ ai.ts               # Gemini / EXAONE 공용 AI 호출 클라이언트 및 모델 상수
 │  ├─ notion.ts           # Notion Client 초기화 및 DB ID 상수
-│  └─ types.ts            # 공통 데이터 인터페이스
+│  ├─ types.ts            # 공통 데이터 인터페이스
+│  └─ utils.ts            # Tailwind 클래스 병합 유틸리티 (cn)
 └─ docs/                  # 설계 및 작업 기록
 ```

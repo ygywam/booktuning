@@ -62,6 +62,16 @@ export interface TimelineItem {
   userId?: string;
 }
 
+export type AiProvider = 'gemini' | 'exaone';
+
+export interface AiStatusInfo {
+  geminiConfigured: boolean;
+  exaoneConfigured: boolean;
+  geminiModel: string;
+  exaoneModel: string;
+  exaoneVisionSupported: boolean;
+}
+
 export interface ApiResponse<T = any> {
   ok: boolean;
   data?: T;

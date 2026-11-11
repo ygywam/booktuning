@@ -6,8 +6,8 @@
 - 실행 환경: Next.js 14 (App Router) + Vercel 배포 / Node.js
 - 프로젝트 유형: 데이터처리·대시보드
 - 형태: B 빌드 도구 (Next.js)
-- 기술 스택과 버전: Next.js 14.2.5, React 18.3.1, @notionhq/client 2.2.15, TypeScript 5.5.3, Tailwind CSS 3.4.4, Gemini 2.5 Flash
-- 인터넷 연결 필요 여부: 필수 (Notion API, Kakao/Aladin/Naver 도서검색 API, 국립중앙도서관 API, Gemini API)
+- 기술 스택과 버전: Next.js 14.2.5, React 18.3.1, @notionhq/client 2.2.15, TypeScript 5.5.3, Tailwind CSS 3.4.4, Three.js 0.187, Google Gemini / LG EXAONE API
+- 인터넷 연결 필요 여부: 필수 (Notion API, Kakao/Aladin/Naver 도서검색 API, 국립중앙도서관 API, Gemini / EXAONE API)
 - 개인정보 취급 여부: 없음 (활동 닉네임만 표시 및 저장, 주민번호·연락처 등 민감정보 일절 미수집)
 - 검증 방법: `npm run dev` 실행 후 브라우저에서 도서 등록·조회, 진도·인사이트 타임라인, AI 감상문 생성, 노션 DB 실시간 동기화 확인
 - 시작일: 2026-10-21
@@ -31,3 +31,5 @@
 - [ ] 공감(좋아요) 토글 및 노션 DB 동기화
 - [ ] 도서 및 기록 수정/삭제 기능
 - [ ] 랭킹보드(완독 권수/쪽수 기준) 집계 및 렌더링
+- [x] WebGLShader 'Tuning Your Life' 입장 화면 렌더링 및 모바일 반응형 확인
+- [x] 설정 모달 내 AI 엔진(Gemini / EXAONE) 전환 및 Vercel 환경변수 연결 상태 표시 확인

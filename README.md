@@ -49,7 +49,8 @@
 - **Frontend**: Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, Lucide Icons
 - **Backend**: Next.js Serverless Route Handlers (`app/api/*`)
 - **Database**: Notion Database (`@notionhq/client` v2.2)
-- **AI & OCR**: Google Gemini 2.5 Flash API
+- **AI & OCR**: Google Gemini (`gemini-3.8-flash`) / LG EXAONE (`k-exaone_v2.5`) 듀얼 선택 지원
+- **UI & 3D**: Tailwind CSS, shadcn UI 구조, Three.js WebGLShader 입장 화면
 - **Book Search**: Kakao Books API, Aladin TTB API, Naver Search API, 국립중앙도서관 오픈API
 - **Deployment**: Vercel (클라우드 무중단 자동 배포)
 
@@ -119,7 +120,11 @@
 | `NOTION_LOG_DB_ID` | 노션 독서일지 DB의 32자리 ID | **필수** |
 | `NOTION_INSIGHT_DB_ID` | 노션 문장수집 DB의 32자리 ID | **필수** |
 | `NOTION_USER_DB_ID` | 노션 사용자 DB의 32자리 ID | **필수 (소유권 관리)** |
-| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/app/apikey) 무료 API 키 | **필수 (AI/OCR)** |
+| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/app/apikey) 무료 API 키 | **필수 (Gemini AI/OCR)** |
+| `EXAONE_API_KEY` | [LG EXAONE API Platform](https://docs.exaone.ai) API 키 | **선택 (EXAONE 감상문)** |
+| `EXAONE_MODEL` | 사용할 EXAONE 모델 ID (미설정 시 `k-exaone_v2.5`) | 선택 |
+| `EXAONE_API_BASE_URL` | EXAONE API 엔드포인트 (미설정 시 `https://api.exaone.ai/v1`) | 선택 |
+| `GEMINI_MODEL` | 사용할 Gemini 모델 ID (미설정 시 `gemini-3.8-flash`) | 선택 |
 | `KAKAO_REST_API_KEY` | [카카오 Developers](https://developers.kakao.com/) REST API 키 | 권장 (도서검색) |
 | `NL_API_KEY` | [국립중앙도서관](https://www.nl.go.kr/) 오픈API 인증키 | 선택 (쪽수 연동) |
 | `ALADIN_API_KEY` | [알라딘 TTB](https://www.aladin.co.kr/ttb/wmain.aspx) 인증키 | 선택 (알라딘 검색) |

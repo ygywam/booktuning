@@ -1,16 +1,12 @@
 import { NextResponse } from 'next/server';
+import { extractOcrWithAI, getAiDisplayName } from '../../../lib/ai';
 
 export async function POST(request: Request) {
   try {
-    const { base64Data, mimeType = 'image/jpeg' } = await request.json();
-    const geminiKey = process.env.GEMINI_API_KEY;
+    const { base64Data, mimeType = 'image/jpeg', aiProvider } = await request.json();
 
     if (!base64Data) {
       return NextResponse.json({ ok: false, error: '분석할 이미지 데이터가 없습니다.' }, { status: 400 });
-    }
-
-    if (!geminiKey) {
-      return NextResponse.json({ ok: false, error: 'GEMINI_API_KEY가 설정되지 않았습니다.' }, { status: 500 });
     }
 
     // base64 헤더 제거 (data:image/jpeg;base64, 부분)
@@ -29,43 +25,22 @@ export async function POST(request: Request) {
 2. 오타나 오인식이 없도록 한 글자 한 글자 정확히 판독할 것.
 3. 문단 줄바꿈은 원래 이미지의 구조를 최대한 반영할 것.`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
-    const payload = {
-      contents: [
-        {
-          parts: [
-            { text: prompt },
-            {
-              inline_data: {
-                mime_type: detectedMime,
-                data: rawBase64,
-              },
-            },
-          ],
-        },
-      ],
-    };
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+    const { ocrText, usedProvider, fallbackUsed } = await extractOcrWithAI({
+      provider: aiProvider,
+      prompt,
+      mimeType: detectedMime,
+      rawBase64,
     });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Gemini OCR 통신 오류 (${res.status}): ${errText}`);
-    }
-
-    const data = await res.json();
-    const ocrText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     return NextResponse.json({
       ok: true,
       ocrText: ocrText.trim(),
+      usedProvider,
+      usedProviderName: getAiDisplayName(usedProvider),
+      fallbackUsed,
     });
   } catch (error: any) {
-    console.error('Gemini OCR 오류:', error);
+    console.error('AI OCR 오류:', error);
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 }

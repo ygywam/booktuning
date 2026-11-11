@@ -1,19 +1,22 @@
 import { NextResponse } from 'next/server';
 import { notion, LOG_DB_ID, INSIGHT_DB_ID } from '../../../lib/notion';
+import { generateTextWithAI, getAiDisplayName } from '../../../lib/ai';
 
 export async function POST(request: Request) {
   try {
-    const { bookTitle, author, readingLogs: clientReadingLogs, pageLogs: clientPageLogs, notionPageId } = await request.json();
-    const geminiKey = process.env.GEMINI_API_KEY;
-
-    if (!geminiKey) {
-      return NextResponse.json({ ok: false, error: '서버에 GEMINI_API_KEY가 설정되지 않았습니다.' }, { status: 500 });
-    }
+    const {
+      bookTitle,
+      author,
+      readingLogs: clientReadingLogs,
+      pageLogs: clientPageLogs,
+      notionPageId,
+      aiProvider,
+    } = await request.json();
 
     let readingLogs = clientReadingLogs || [];
     let pageLogs = clientPageLogs || [];
 
-    // 만약 클라이언트에서 로그가 누락되었고 notionPageId가 있다면 노션 DB에서 직접 조회
+    // 클라이언트에서 로그가 누락되었고 notionPageId가 있다면 노션 DB에서 직접 조회
     if (notionPageId && readingLogs.length === 0 && LOG_DB_ID) {
       try {
         const logRes = await notion.databases.query({
@@ -64,20 +67,11 @@ ${pageSummary || '없음'}
 
 지침: 1인칭 주인공 어조 확립, 제3자 말투 금지, 마크다운 기호 금지. 빈 줄(엔터)만 사용.`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+    const { text: generatedText, provider } = await generateTextWithAI({
+      provider: aiProvider,
+      prompt,
     });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Gemini API 통신 오류 (${res.status}): ${errText}`);
-    }
-
-    const data = await res.json();
-    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const engineLabel = provider === 'exaone' ? 'EXAONE' : 'Gemini';
 
     // 노션 해당 도서 페이지 본문에 감상문 블록 추가
     if (notionPageId && generatedText) {
@@ -88,7 +82,7 @@ ${pageSummary || '없음'}
             object: 'block',
             type: 'heading_2',
             heading_2: {
-              rich_text: [{ type: 'text', text: { content: '✨ Gemini AI 감상문' } }],
+              rich_text: [{ type: 'text', text: { content: `✨ ${engineLabel} AI 감상문` } }],
               color: 'blue_background',
             },
           },
@@ -108,7 +102,12 @@ ${pageSummary || '없음'}
       }
     }
 
-    return NextResponse.json({ ok: true, aiReport: generatedText });
+    return NextResponse.json({
+      ok: true,
+      aiReport: generatedText,
+      provider,
+      providerName: getAiDisplayName(provider),
+    });
   } catch (error: any) {
     console.error('AI 감상문 생성 오류:', error);
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });

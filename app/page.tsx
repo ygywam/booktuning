@@ -1,14 +1,19 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Book, TimelineItem, User } from '../lib/types';
+import { AiProvider, AiStatusInfo, Book, TimelineItem, User } from '../lib/types';
+import { LandingGate } from '../components/LandingGate';
 
 export default function Home() {
   // 1. 유저 및 세션 상태
   const [user, setUser] = useState<User | null>(null);
   const [nickname, setNickname] = useState('');
   const [pin, setPin] = useState('');
+  const [hasEnteredLibrary, setHasEnteredLibrary] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [theme, setTheme] = useState('theme-base');
+  const [aiProvider, setAiProvider] = useState<AiProvider>('gemini');
+  const [aiStatus, setAiStatus] = useState<AiStatusInfo | null>(null);
 
   // 2. 도서 서재 상태 (기본: 커뮤니티 전체)
   const [books, setBooks] = useState<Book[]>([]);
@@ -85,26 +90,55 @@ export default function Home() {
     const savedApiType = (localStorage.getItem('search_api_type') as any) || 'kakao';
     setSearchApiType(savedApiType);
 
+    const savedAiProvider = (localStorage.getItem('ai_provider') as AiProvider) || 'gemini';
+    setAiProvider(savedAiProvider === 'exaone' ? 'exaone' : 'gemini');
+
     const today = new Date().toISOString().split('T')[0];
     setReadDate(today);
 
+    let entered = false;
     const savedUserStr = localStorage.getItem('app_user');
     const savedNickname = localStorage.getItem('app_nickname');
+    const savedGuest = localStorage.getItem('guest_entered') === 'true';
+
     if (savedUserStr) {
       try {
         const parsed = JSON.parse(savedUserStr);
         setUser(parsed);
         setNickname(parsed.nickname || savedNickname || '');
         setPin(parsed.pin || '');
+        if (parsed.nickname || savedNickname) entered = true;
       } catch (e) {
-        if (savedNickname) setNickname(savedNickname);
+        if (savedNickname) {
+          setNickname(savedNickname);
+          entered = true;
+        }
       }
     } else if (savedNickname) {
       setNickname(savedNickname);
+      entered = true;
+    } else if (savedGuest) {
+      entered = true;
     }
 
+    setHasEnteredLibrary(entered);
+    setAuthChecked(true);
+
     fetchBooks();
+    fetchAiStatus();
   }, []);
+
+  const fetchAiStatus = async () => {
+    try {
+      const res = await fetch('/api/ai-status');
+      const data = await res.json();
+      if (data.ok) {
+        setAiStatus(data);
+      }
+    } catch (err) {
+      console.warn('AI 상태 확인 건너뜀:', err);
+    }
+  };
 
   const changeTheme = (newTheme: string) => {
     setTheme(newTheme);
@@ -115,6 +149,11 @@ export default function Home() {
   const changeSearchApiType = (newType: 'kakao' | 'aladin' | 'naver') => {
     setSearchApiType(newType);
     localStorage.setItem('search_api_type', newType);
+  };
+
+  const changeAiProvider = (nextProvider: AiProvider) => {
+    setAiProvider(nextProvider);
+    localStorage.setItem('ai_provider', nextProvider);
   };
 
   const fetchBooks = async () => {
@@ -134,31 +173,56 @@ export default function Home() {
     }
   };
 
-  // 8. 사용자 로그인 및 등록
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nickname.trim()) return alert('활동할 닉네임을 입력해 주세요.');
-
+  // 8. 사용자 로그인 / 등록 공용 인증 핸들러
+  const authenticateUser = async (targetNickname: string, targetPin: string): Promise<boolean> => {
     try {
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nickname: nickname.trim(), pin: pin.trim() }),
+        body: JSON.stringify({ nickname: targetNickname.trim(), pin: targetPin.trim() }),
       });
       const data = await res.json();
       if (data.ok) {
         setUser(data.user);
+        setNickname(data.user.nickname);
+        setPin(data.user.pin || targetPin.trim());
         localStorage.setItem('app_user', JSON.stringify(data.user));
         localStorage.setItem('app_nickname', data.user.nickname);
+        localStorage.removeItem('guest_entered');
+        setHasEnteredLibrary(true);
         setShowLoginModal(false);
         alert(`반갑습니다, ${data.user.nickname}님! 북튜닝 서재에 입장하셨습니다. 📚`);
         fetchBooks();
+        return true;
       } else {
         alert(data.error || '로그인에 실패했습니다.');
+        return false;
       }
     } catch (err) {
       alert('로그인 통신 중 오류가 발생했습니다.');
+      return false;
     }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nickname.trim()) return alert('활동할 닉네임을 입력해 주세요.');
+    await authenticateUser(nickname, pin);
+  };
+
+  const handleBrowseAsGuest = () => {
+    localStorage.setItem('guest_entered', 'true');
+    setHasEnteredLibrary(true);
+  };
+
+  const handleReturnToGate = () => {
+    localStorage.removeItem('app_user');
+    localStorage.removeItem('app_nickname');
+    localStorage.removeItem('guest_entered');
+    setUser(null);
+    setHasEnteredLibrary(false);
+    setShowLoginModal(false);
+    setShowSettingsModal(false);
   };
 
   // 9. 도서 검색 (다각화: kakao, aladin, naver)
@@ -392,70 +456,60 @@ export default function Home() {
     });
   };
 
-  // 진도 기록용 사진 OCR
-  const handleLogOcrImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setLogOcrLoading(true);
+  // 공용 OCR 이미지 분석 핸들러
+  const runOcrFromFile = async (
+    file: File,
+    setBusy: (busy: boolean) => void,
+    onImageReady: (dataUrl: string) => void,
+    onTextExtracted: (text: string) => void
+  ) => {
+    setBusy(true);
     try {
       const base64Data = await compressImage(file);
       if (!base64Data) {
         alert('이미지를 읽을 수 없습니다.');
         return;
       }
-      setLogImageUrl(base64Data);
+      onImageReady(base64Data);
 
       const res = await fetch('/api/ocr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ base64Data, mimeType: 'image/jpeg' }),
+        body: JSON.stringify({ base64Data, mimeType: 'image/jpeg', aiProvider }),
       });
       const data = await res.json();
       if (data.ok && data.ocrText) {
-        setNote((prev) => (prev ? `${prev}\n\n${data.ocrText}` : data.ocrText));
-        alert('Gemini AI가 사진에서 감상/문장을 성공적으로 추출했습니다! ✨');
+        onTextExtracted(data.ocrText);
+        const fallbackNote = data.fallbackUsed
+          ? '\n(참고: K-EXAONE 2.5는 텍스트 전용 모델이라 이미지 판독은 Gemini 비전으로 자동 처리되었습니다.)'
+          : '';
+        alert(`${data.usedProviderName || 'AI'}가 사진에서 문장을 성공적으로 추출했습니다! ✨${fallbackNote}`);
       } else {
-        alert('문장 추출 실패 또는 글자를 찾지 못했습니다.');
+        alert(data.error || '문장 추출 실패 또는 글자를 찾지 못했습니다.');
       }
     } catch (err) {
       alert('OCR 통신 오류 발생');
     } finally {
-      setLogOcrLoading(false);
+      setBusy(false);
     }
+  };
+
+  // 진도 기록용 사진 OCR
+  const handleLogOcrImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await runOcrFromFile(file, setLogOcrLoading, setLogImageUrl, (ocrText) => {
+      setNote((prev) => (prev ? `${prev}\n\n${ocrText}` : ocrText));
+    });
   };
 
   // 문장 수집용 사진 OCR
   const handleOcrImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    setOcrLoading(true);
-    try {
-      const base64Data = await compressImage(file);
-      if (!base64Data) {
-        alert('이미지를 읽을 수 없습니다.');
-        return;
-      }
-      setInsightImageUrl(base64Data);
-
-      const res = await fetch('/api/ocr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ base64Data, mimeType: 'image/jpeg' }),
-      });
-      const data = await res.json();
-      if (data.ok && data.ocrText) {
-        setInsightNotes((prev) => (prev ? `${prev}\n\n${data.ocrText}` : data.ocrText));
-        alert('Gemini AI가 사진에서 문장을 성공적으로 추출했습니다! ✨');
-      } else {
-        alert('문장 추출 실패 또는 글자를 찾지 못했습니다.');
-      }
-    } catch (err) {
-      alert('OCR 통신 오류 발생');
-    } finally {
-      setOcrLoading(false);
-    }
+    await runOcrFromFile(file, setOcrLoading, setInsightImageUrl, (ocrText) => {
+      setInsightNotes((prev) => (prev ? `${prev}\n\n${ocrText}` : ocrText));
+    });
   };
 
   const handleSubmitInsight = async (e: React.FormEvent) => {
@@ -594,7 +648,7 @@ export default function Home() {
     }
   };
 
-  // 14. Gemini AI 독서 감상문 생성
+  // 14. AI 독서 감상문 생성 (Gemini / EXAONE 선택 반영)
   const handleGenerateAi = async () => {
     if (!selectedBook) return;
     if (!checkIsOwner(selectedBook)) {
@@ -609,12 +663,13 @@ export default function Home() {
           bookTitle: selectedBook.title,
           author: selectedBook.author,
           notionPageId: selectedBook.bookId,
+          aiProvider,
         }),
       });
       const data = await res.json();
       if (data.ok) {
         setAiReport(data.aiReport);
-        alert('✨ Gemini AI 감상문이 생성되고 노션 본문에 자동 저장되었습니다!');
+        alert(`✨ ${data.providerName || 'AI'} 감상문이 생성되고 노션 본문에 자동 저장되었습니다!`);
       } else {
         alert(`AI 생성 실패: ${data.error}`);
       }
@@ -711,48 +766,68 @@ export default function Home() {
     });
   }, [books]);
 
+  const activeAiName = aiProvider === 'exaone' ? 'LG EXAONE' : 'Google Gemini';
+
   return (
-    <div className="app">
-      {/* 1. 상단 마스트헤드 */}
-      <header className="app-header">
-        <div>
-          <div
-            className="app-title-row"
-            onClick={() => {
-              setActiveTab('all');
-              setStatusFilter('all');
-            }}
-            style={{ cursor: 'pointer' }}
-            title="서재 홈으로 이동"
-          >
-            <img src="/icon.svg" className="app-logo-icon" alt="북튜닝 로고" />
-            <h1>북튜닝 (Book Tuning)</h1>
-          </div>
-          <p className="subtitle">
-            {nickname
-              ? `${nickname}님과 함께 읽고 기록하며 삶의 주파수를 맞춰가는 공유 서재입니다.`
-              : '책을 읽고 기록하며 내 삶과 생각의 주파수를 맞춰가는 공간입니다.'}
-          </p>
-        </div>
-        <div className="header-nav-row">
-          <button
-            className="ghost-button"
-            style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
-            onClick={() => setShowTutorialModal(true)}
-          >
-            📖 사용법
-          </button>
-          <button className="ghost-button" onClick={() => setShowLoginModal(true)}>
-            👤 프로필/로그인
-          </button>
-          <button className="ghost-button" onClick={() => setShowDevLogModal(true)}>
-            📝 개발로그
-          </button>
-          <button className="ghost-button" onClick={() => setShowSettingsModal(true)}>
-            ⚙️ 설정
-          </button>
-        </div>
-      </header>
+    <>
+      {!authChecked ? (
+        <div className="min-h-screen bg-[#f9f6f0]" />
+      ) : !hasEnteredLibrary ? (
+        <LandingGate
+          initialNickname={nickname}
+          initialPin={pin}
+          onEnterWithProfile={authenticateUser}
+          onBrowseGuest={handleBrowseAsGuest}
+          onOpenTutorial={() => setShowTutorialModal(true)}
+          onOpenSettings={() => setShowSettingsModal(true)}
+          onOpenPrivacy={() => setShowPrivacyModal(true)}
+          onOpenCopyright={() => setShowCopyrightModal(true)}
+        />
+      ) : (
+        <div className="app">
+          {/* 1. 상단 마스트헤드 */}
+          <header className="app-header">
+            <div>
+              <div
+                className="app-title-row"
+                onClick={() => {
+                  setActiveTab('all');
+                  setStatusFilter('all');
+                }}
+                style={{ cursor: 'pointer' }}
+                title="서재 홈으로 이동"
+              >
+                <img src="/icon.svg" className="app-logo-icon" alt="북튜닝 로고" />
+                <h1>북튜닝 (Book Tuning)</h1>
+              </div>
+              <p className="subtitle">
+                {nickname
+                  ? `${nickname}님과 함께 읽고 기록하며 삶의 주파수를 맞춰가는 공유 서재입니다.`
+                  : '책을 읽고 기록하며 내 삶과 생각의 주파수를 맞춰가는 공간입니다.'}
+              </p>
+            </div>
+            <div className="header-nav-row">
+              <button
+                className="ghost-button"
+                style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                onClick={() => setShowTutorialModal(true)}
+              >
+                📖 사용법
+              </button>
+              <button className="ghost-button" onClick={() => setShowLoginModal(true)}>
+                👤 프로필/로그인
+              </button>
+              <button className="ghost-button" onClick={() => setHasEnteredLibrary(false)}>
+                ✨ 입장화면
+              </button>
+              <button className="ghost-button" onClick={() => setShowDevLogModal(true)}>
+                📝 개발로그
+              </button>
+              <button className="ghost-button" onClick={() => setShowSettingsModal(true)}>
+                ⚙️ 설정
+              </button>
+            </div>
+          </header>
 
       {/* 2. 도서 검색 패널 */}
       <section className="panel">
@@ -817,7 +892,7 @@ export default function Home() {
         <div className="section-title-row">
           <div>
             <h2>통합 독서 갤러리</h2>
-            <p className="subtitle">💡 <b>책 표지 이미지를 클릭</b>하면 상세 타임라인과 <b>Gemini AI 감상문</b>을 볼 수 있습니다.</p>
+            <p className="subtitle">💡 <b>책 표지 이미지를 클릭</b>하면 상세 타임라인과 <b>{activeAiName} AI 감상문</b>을 볼 수 있습니다.</p>
           </div>
         </div>
 
@@ -1034,6 +1109,8 @@ export default function Home() {
           <a href="#" onClick={(e) => { e.preventDefault(); alert('문의 사항은 @record_tuner 인스타그램 DM 또는 노션 페이지를 통해 접수해 주세요.'); }} style={{ fontSize: '13px' }}>지원/문의</a>
         </p>
       </footer>
+        </div>
+      )}
 
       {/* ===================== 모달 (Modals) ===================== */}
 
@@ -1073,8 +1150,15 @@ export default function Home() {
               <p className="text-xs text-stone-500">
                 ※ 동명이인 구분 및 본인 인증을 위해 사용됩니다. 기존 사용자는 노션에 등록된 4자리 PIN을 입력하세요.
               </p>
-              <div className="text-right mt-4">
+              <div className="mt-4 flex flex-col gap-2">
                 <button type="submit" className="w-full py-3 font-bold">서재 입장하기</button>
+                <button
+                  type="button"
+                  className="ghost-button w-full py-2.5 text-xs"
+                  onClick={handleReturnToGate}
+                >
+                  세션 초기화 및 입장 화면으로 나가기
+                </button>
               </div>
             </form>
           </div>
@@ -1320,9 +1404,21 @@ export default function Home() {
               <div>
                 {checkIsOwner(selectedBook) ? (
                   <div className="ai-control-box">
-                    <p>누적된 진도와 문장 기록들을 바탕으로 Gemini AI가 1인칭 독자의 독서 감상문 초안을 작성합니다.</p>
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <span className="text-xs font-bold text-amber-900">
+                        현재 AI 엔진: {activeAiName}
+                      </span>
+                      <button
+                        type="button"
+                        className="ghost-button text-xs py-1 px-2.5"
+                        onClick={() => setShowSettingsModal(true)}
+                      >
+                        ⚙️ AI 변경
+                      </button>
+                    </div>
+                    <p>누적된 진도와 문장 기록들을 바탕으로 {activeAiName} AI가 1인칭 독자의 독서 감상문 초안을 작성합니다.</p>
                     <button className="mt-3 w-full" onClick={handleGenerateAi} disabled={aiLoading}>
-                      {aiLoading ? '🤖 Gemini가 감상문을 분석하고 작성 중입니다...' : '✨ Gemini 감상문 생성하기'}
+                      {aiLoading ? `🤖 ${activeAiName}가 감상문을 분석하고 작성 중입니다...` : `✨ ${activeAiName} 감상문 생성하기`}
                     </button>
                   </div>
                 ) : (
@@ -1417,7 +1513,7 @@ export default function Home() {
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
                 <span className="text-xs font-bold text-amber-900">📷 책 페이지 또는 메모 사진 첨부 (AI 감상/요약 추출)</span>
                 <input type="file" accept="image/*" onChange={handleLogOcrImageUpload} className="text-xs" />
-                {logOcrLoading && <p className="text-xs text-amber-700 animate-pulse">🤖 Gemini AI가 사진 속 문장을 읽어내는 중입니다...</p>}
+                {logOcrLoading && <p className="text-xs text-amber-700 animate-pulse">🤖 AI가 사진 속 문장을 읽어내는 중입니다...</p>}
                 {logImageUrl && (
                   <div className="flex items-center gap-2 mt-2">
                     <img src={logImageUrl} alt="미리보기" className="w-16 h-16 object-cover rounded border" />
@@ -1453,7 +1549,7 @@ export default function Home() {
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
                 <span className="text-xs font-bold text-amber-900">📷 책 페이지 또는 손글씨 사진 첨부 (AI 자동 추출)</span>
                 <input type="file" accept="image/*" onChange={handleOcrImageUpload} className="text-xs" />
-                {ocrLoading && <p className="text-xs text-amber-700 animate-pulse">🤖 Gemini AI가 사진 속 문장을 읽어내는 중입니다...</p>}
+                {ocrLoading && <p className="text-xs text-amber-700 animate-pulse">🤖 AI가 사진 속 문장을 읽어내는 중입니다...</p>}
                 {insightImageUrl && (
                   <div className="flex items-center gap-2 mt-2">
                     <img src={insightImageUrl} alt="미리보기" className="w-16 h-16 object-cover rounded border" />
@@ -1525,6 +1621,40 @@ export default function Home() {
               </select>
             </label>
 
+            {/* 🤖 AI 엔진 선택 설정 (Gemini / EXAONE) */}
+            <div className="pt-3 border-t">
+              <h3 className="font-bold text-sm text-stone-800 mb-2">🤖 AI 엔진 설정 (독서 감상문 & OCR)</h3>
+              <label>사용할 AI 선택
+                <select
+                  value={aiProvider}
+                  onChange={(e) => changeAiProvider(e.target.value as AiProvider)}
+                >
+                  <option value="gemini">Google Gemini (감상문 + 이미지 OCR 멀티모달)</option>
+                  <option value="exaone">LG EXAONE (K-EXAONE 2.5 한국어 특화 감상문)</option>
+                </select>
+              </label>
+
+              {aiStatus && (
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className={`p-2 rounded-lg border ${aiStatus.geminiConfigured ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-stone-50 border-stone-200 text-stone-500'}`}>
+                    <span className="font-bold">Gemini:</span>{' '}
+                    {aiStatus.geminiConfigured ? '연결됨' : '미설정 (GEMINI_API_KEY)'}
+                  </div>
+                  <div className={`p-2 rounded-lg border ${aiStatus.exaoneConfigured ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-stone-50 border-stone-200 text-stone-500'}`}>
+                    <span className="font-bold">EXAONE:</span>{' '}
+                    {aiStatus.exaoneConfigured ? '연결됨' : '미설정 (EXAONE_API_KEY)'}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-stone-500 mt-1.5 leading-relaxed">
+                ※ Vercel 환경변수에 <code>GEMINI_API_KEY</code> 또는 <code>EXAONE_API_KEY</code>를 등록해 주세요.
+                {aiProvider === 'exaone' && !aiStatus?.exaoneVisionSupported && (
+                  <> K-EXAONE 2.5는 텍스트 전용 모델이므로 사진 OCR은 Gemini 비전(키 설정 시)으로 자동 보완됩니다.</>
+                )}
+              </p>
+            </div>
+
             {/* 🛠️ 도서 검색 API 설정 (이미지 3 원형 복원) */}
             <div className="pt-3 border-t">
               <h3 className="font-bold text-sm text-stone-800 mb-2">🛠️ 도서 검색 API 설정</h3>
@@ -1547,11 +1677,13 @@ export default function Home() {
               <span className="text-xs font-bold text-stone-600 block mb-2">👤 현재 로그인 프로필</span>
               <div className="p-3 bg-amber-50 border rounded-xl flex justify-between items-center">
                 <div>
-                  <p className="font-bold text-sm">{nickname}</p>
-                  <p className="text-xs text-stone-500">PIN: {pin}</p>
+                  <p className="font-bold text-sm">{nickname ? nickname : '미로그인 (입장 전 / 둘러보기)'}</p>
+                  <p className="text-xs text-stone-500">
+                    {nickname ? `PIN: ${pin ? '••••' : '미입력'}` : '닉네임으로 입장하면 내 서재를 기록할 수 있습니다.'}
+                  </p>
                 </div>
                 <button className="ghost-button text-xs" onClick={() => { setShowSettingsModal(false); setShowLoginModal(true); }}>
-                  프로필 변경
+                  {nickname ? '프로필 변경' : '로그인 / 등록'}
                 </button>
               </div>
             </div>
@@ -1573,7 +1705,8 @@ export default function Home() {
                 onClick={() => {
                   localStorage.setItem('app_theme', theme);
                   localStorage.setItem('search_api_type', searchApiType);
-                  alert('✅ 설정이 안전하게 저장되었습니다.');
+                  localStorage.setItem('ai_provider', aiProvider);
+                  alert(`✅ 설정이 안전하게 저장되었습니다.\n(선택된 AI: ${aiProvider === 'exaone' ? 'LG EXAONE' : 'Google Gemini'})`);
                   setShowSettingsModal(false);
                 }}
               >
@@ -1815,6 +1948,6 @@ export default function Home() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
