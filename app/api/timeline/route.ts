@@ -26,7 +26,7 @@ export async function GET(request: Request) {
               contains: bookId,
             },
           },
-          sorts: [{ property: '읽은 날짜', direction: 'ascending' }],
+          sorts: [{ property: '읽은 날짜', direction: 'descending' }],
         });
 
         logRes.results.forEach((page: any) => {
@@ -35,10 +35,10 @@ export async function GET(request: Request) {
           readingLogs.push({
             logId: page.id,
             bookNotionPageId: bookId,
-            readDate: props['읽은 날짜']?.title[0]?.plain_text || '',
+            readDate: (props['읽은 날짜']?.title || []).map((t: any) => t.plain_text).join(''),
             readPages: props['이번에 읽은 페이지(숫자)']?.number || 0,
-            note: props['독서 감상록']?.rich_text[0]?.plain_text || '',
-            nickname: props['기록자']?.rich_text[0]?.plain_text || '',
+            note: (props['독서 감상록']?.rich_text || []).map((t: any) => t.plain_text).join(''),
+            nickname: (props['기록자']?.rich_text || []).map((t: any) => t.plain_text).join(''),
             userId: userRel[0]?.id || '',
             createdAt: page.created_time,
           });
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
               contains: bookId,
             },
           },
-          sorts: [{ timestamp: 'created_time', direction: 'ascending' }],
+          sorts: [{ timestamp: 'created_time', direction: 'descending' }],
         });
 
         insightRes.results.forEach((page: any) => {
@@ -69,9 +69,9 @@ export async function GET(request: Request) {
           pageLogs.push({
             pageLogId: page.id,
             bookNotionPageId: bookId,
-            page: props['페이지']?.rich_text[0]?.plain_text || '',
-            notes: props['내용']?.title[0]?.plain_text || '',
-            nickname: props['기록자']?.rich_text[0]?.plain_text || '',
+            page: (props['페이지']?.rich_text || []).map((t: any) => t.plain_text).join(''),
+            notes: (props['내용']?.title || []).map((t: any) => t.plain_text).join(''),
+            nickname: (props['기록자']?.rich_text || []).map((t: any) => t.plain_text).join(''),
             userId: userRel[0]?.id || '',
             readDate,
             createdAt: page.created_time,
@@ -128,7 +128,7 @@ export async function GET(request: Request) {
       console.warn('도서 본문 블록 조회 건너뜀:', e);
     }
 
-    // 4. 통합 타임라인 리스트 생성 (정렬)
+    // 4. 통합 타임라인 리스트 생성 (최신순 정렬)
     const timeline = [
       ...readingLogs.map((l) => ({
         type: 'log',
@@ -138,6 +138,7 @@ export async function GET(request: Request) {
         content: l.note,
         nickname: l.nickname,
         userId: l.userId,
+        createdAt: l.createdAt || '',
       })),
       ...pageLogs.map((p) => ({
         type: 'insight',
@@ -148,11 +149,14 @@ export async function GET(request: Request) {
         imageUrl: p.imageUrl,
         nickname: p.nickname,
         userId: p.userId,
+        createdAt: p.createdAt || '',
       })),
     ].sort((a, b) => {
       const dateA = a.date || '0000-00-00';
       const dateB = b.date || '0000-00-00';
-      return dateA.localeCompare(dateB);
+      const dateCmp = dateB.localeCompare(dateA);
+      if (dateCmp !== 0) return dateCmp;
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
     });
 
     return NextResponse.json({

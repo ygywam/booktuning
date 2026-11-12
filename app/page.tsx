@@ -51,6 +51,22 @@ export default function Home() {
   const [myReport, setMyReport] = useState('');
   const [myReportSaving, setMyReportSaving] = useState(false);
 
+  // 상세 모달 내 인라인 작성 폼 상태
+  const [activeDetailForm, setActiveDetailForm] = useState<'none' | 'log' | 'insight'>('none');
+  const [inlineLogDate, setInlineLogDate] = useState('');
+  const [inlineLogPage, setInlineLogPage] = useState<number | ''>('');
+  const [inlineLogContent, setInlineLogContent] = useState('');
+  const [inlineLogImageUrl, setInlineLogImageUrl] = useState('');
+  const [inlineLogOcrLoading, setInlineLogOcrLoading] = useState(false);
+  const [submittingInlineLog, setSubmittingInlineLog] = useState(false);
+
+  const [inlineInsightPage, setInlineInsightPage] = useState('');
+  const [inlineInsightDate, setInlineInsightDate] = useState('');
+  const [inlineInsightQuote, setInlineInsightQuote] = useState('');
+  const [inlineInsightImageUrl, setInlineInsightImageUrl] = useState('');
+  const [inlineInsightOcrLoading, setInlineInsightOcrLoading] = useState(false);
+  const [submittingInlineInsight, setSubmittingInlineInsight] = useState(false);
+
   // 6. 폼 상태들
   const [readDate, setReadDate] = useState('');
   const [readPages, setReadPages] = useState<number | ''>('');
@@ -95,6 +111,8 @@ export default function Home() {
 
     const today = new Date().toISOString().split('T')[0];
     setReadDate(today);
+    setInlineLogDate(today);
+    setInlineInsightDate(today);
 
     let entered = false;
     const savedUserStr = localStorage.getItem('app_user');
@@ -215,11 +233,19 @@ export default function Home() {
     setHasEnteredLibrary(true);
   };
 
-  const handleReturnToGate = () => {
+  const handleLogout = (skipConfirm = false) => {
+    if (!skipConfirm && (nickname || user)) {
+      if (!confirm(`${nickname || '현재 계정'}에서 로그아웃하고 입장 화면으로 이동할까요?`)) {
+        return;
+      }
+    }
     localStorage.removeItem('app_user');
     localStorage.removeItem('app_nickname');
     localStorage.removeItem('guest_entered');
     setUser(null);
+    setNickname('');
+    setPin('');
+    setActiveTab('all');
     setHasEnteredLibrary(false);
     setShowLoginModal(false);
     setShowSettingsModal(false);
@@ -591,10 +617,35 @@ export default function Home() {
     }
   };
 
+  // 현재 상세 모달에 표시할 최신 도서 정보 (목록 갱신 시 즉시 반영)
+  const activeDetailBook = useMemo(() => {
+    if (!selectedBook) return null;
+    return books.find((b) => b.bookId === selectedBook.bookId) || selectedBook;
+  }, [books, selectedBook]);
+
+  // 통합 독서 피드 최신순 정렬
+  const sortedTimelineItems = useMemo(() => {
+    return [...timelineItems].sort((a, b) => {
+      const dateCmp = (b.date || '').localeCompare(a.date || '');
+      if (dateCmp !== 0) return dateCmp;
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    });
+  }, [timelineItems]);
+
   // 13. 도서 상세 및 타임라인 열기
   const openDetail = async (book: Book) => {
+    const today = new Date().toISOString().split('T')[0];
     setSelectedBook(book);
     setDetailTab('timeline');
+    setActiveDetailForm('none');
+    setInlineLogDate(today);
+    setInlineLogPage('');
+    setInlineLogContent('');
+    setInlineLogImageUrl('');
+    setInlineInsightDate(today);
+    setInlineInsightPage('');
+    setInlineInsightQuote('');
+    setInlineInsightImageUrl('');
     setShowDetailModal(true);
     fetchTimeline(book.bookId);
   };
@@ -617,13 +668,13 @@ export default function Home() {
   };
 
   const handleDeleteLog = async (logId: string) => {
-    if (!confirm('이 진도 기록을 삭제하시겠습니까? (노션에서도 즉시 삭제됩니다)')) return;
+    if (!confirm('이 독서일지를 삭제하시겠습니까?\n노션 데이터베이스에서도 삭제(아카이브)됩니다.')) return;
     try {
       const res = await fetch(`/api/logs?logId=${logId}&nickname=${encodeURIComponent(nickname.trim())}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.ok) {
-        if (selectedBook) fetchTimeline(selectedBook.bookId);
-        fetchBooks();
+        const targetId = activeDetailBook?.bookId || selectedBook?.bookId;
+        await Promise.all([targetId ? fetchTimeline(targetId) : Promise.resolve(), fetchBooks()]);
       } else {
         alert(data.error || '삭제 실패');
       }
@@ -633,18 +684,117 @@ export default function Home() {
   };
 
   const handleDeleteInsight = async (pageLogId: string) => {
-    if (!confirm('이 문장 수집 기록을 삭제하시겠습니까? (노션에서도 즉시 삭제됩니다)')) return;
+    if (!confirm('이 문장 수집을 삭제하시겠습니까?\n노션 데이터베이스에서도 삭제(아카이브)됩니다.')) return;
     try {
       const res = await fetch(`/api/insights?pageLogId=${pageLogId}&nickname=${encodeURIComponent(nickname.trim())}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.ok) {
-        if (selectedBook) fetchTimeline(selectedBook.bookId);
-        fetchBooks();
+        const targetId = activeDetailBook?.bookId || selectedBook?.bookId;
+        await Promise.all([targetId ? fetchTimeline(targetId) : Promise.resolve(), fetchBooks()]);
       } else {
         alert(data.error || '삭제 실패');
       }
     } catch (err) {
       alert('삭제 실패');
+    }
+  };
+
+  // 상세 모달 내 인라인 독서일지 작성 제출
+  const handleSubmitInlineLog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetBook = activeDetailBook || selectedBook;
+    if (!targetBook) return;
+    if (!checkIsOwner(targetBook)) {
+      return alert('본인이 등록한 도서에만 독서일지를 작성할 수 있습니다.');
+    }
+    if (inlineLogPage === '' || !inlineLogContent.trim()) {
+      alert('읽은 페이지와 감상 내용을 입력해 주세요.');
+      return;
+    }
+
+    setSubmittingInlineLog(true);
+    try {
+      const res = await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookNotionPageId: targetBook.bookId,
+          readDate: inlineLogDate || new Date().toISOString().split('T')[0],
+          readPages: Number(inlineLogPage),
+          note: inlineLogContent,
+          imageUrl: inlineLogImageUrl,
+          nickname: nickname.trim(),
+          userId: user?.id,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || '일지 작성 실패');
+
+      setInlineLogContent('');
+      setInlineLogPage('');
+      setInlineLogImageUrl('');
+      setActiveDetailForm('none');
+      await Promise.all([fetchTimeline(targetBook.bookId), fetchBooks()]);
+    } catch (err: any) {
+      alert(err.message || '일지 작성 중 오류가 발생했습니다.');
+    } finally {
+      setSubmittingInlineLog(false);
+    }
+  };
+
+  // 상세 모달 내 인라인 문장수집 작성 제출
+  const handleSubmitInlineInsight = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetBook = activeDetailBook || selectedBook;
+    if (!targetBook) return;
+    if (!checkIsOwner(targetBook)) {
+      return alert('본인이 등록한 도서에만 문장을 수집할 수 있습니다.');
+    }
+    if (!inlineInsightQuote.trim()) {
+      alert('수집할 문장 내용을 입력해 주세요.');
+      return;
+    }
+
+    setSubmittingInlineInsight(true);
+    try {
+      const res = await fetch('/api/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookNotionPageId: targetBook.bookId,
+          page: inlineInsightPage,
+          notes: inlineInsightQuote,
+          readDate: inlineInsightDate || new Date().toISOString().split('T')[0],
+          imageUrl: inlineInsightImageUrl,
+          nickname: nickname.trim(),
+          userId: user?.id,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || '문장수집 실패');
+
+      setInlineInsightQuote('');
+      setInlineInsightPage('');
+      setInlineInsightImageUrl('');
+      setActiveDetailForm('none');
+      await Promise.all([fetchTimeline(targetBook.bookId), fetchBooks()]);
+    } catch (err: any) {
+      alert(err.message || '문장수집 중 오류가 발생했습니다.');
+    } finally {
+      setSubmittingInlineInsight(false);
+    }
+  };
+
+  // 상세 모달 인라인 OCR 핸들러
+  const handleInlinePhotoOcr = async (file: File, target: 'log' | 'insight') => {
+    if (target === 'log') {
+      await runOcrFromFile(file, setInlineLogOcrLoading, setInlineLogImageUrl, (ocrText) => {
+        setInlineLogContent((prev) => (prev ? `${prev}\n\n${ocrText}` : ocrText));
+      });
+    } else {
+      await runOcrFromFile(file, setInlineInsightOcrLoading, setInlineInsightImageUrl, (ocrText) => {
+        setInlineInsightQuote((prev) => (prev ? `${prev}\n\n${ocrText}` : ocrText));
+      });
     }
   };
 
@@ -814,12 +964,28 @@ export default function Home() {
               >
                 📖 사용법
               </button>
-              <button className="ghost-button" onClick={() => setShowLoginModal(true)}>
-                👤 프로필/로그인
-              </button>
-              <button className="ghost-button" onClick={() => setHasEnteredLibrary(false)}>
-                ✨ 입장화면
-              </button>
+              {nickname || user ? (
+                <>
+                  <button className="ghost-button" onClick={() => setShowLoginModal(true)}>
+                    👤 {nickname || '내 프로필'}
+                  </button>
+                  <button
+                    className="ghost-button"
+                    style={{ color: 'var(--danger)', borderColor: '#f2c9c5' }}
+                    onClick={() => handleLogout()}
+                  >
+                    🚪 로그아웃
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="ghost-button"
+                  style={{ borderColor: 'var(--accent)', color: 'var(--accent-dark)' }}
+                  onClick={() => handleLogout(true)}
+                >
+                  ✨ 로그인 / 입장화면
+                </button>
+              )}
               <button className="ghost-button" onClick={() => setShowDevLogModal(true)}>
                 📝 개발로그
               </button>
@@ -1152,13 +1318,16 @@ export default function Home() {
               </p>
               <div className="mt-4 flex flex-col gap-2">
                 <button type="submit" className="w-full py-3 font-bold">서재 입장하기</button>
-                <button
-                  type="button"
-                  className="ghost-button w-full py-2.5 text-xs"
-                  onClick={handleReturnToGate}
-                >
-                  세션 초기화 및 입장 화면으로 나가기
-                </button>
+                {(nickname || user) && (
+                  <button
+                    type="button"
+                    className="ghost-button w-full py-2.5 text-xs"
+                    style={{ color: 'var(--danger)', borderColor: '#f2c9c5' }}
+                    onClick={() => handleLogout()}
+                  >
+                    🚪 로그아웃 (입장 화면으로 이동)
+                  </button>
+                )}
               </div>
             </form>
           </div>
@@ -1273,220 +1442,576 @@ export default function Home() {
         </div>
       )}
 
-      {/* 3. 도서 상세 기록 (통합 타임라인, AI 감상문, 나의 감상문) */}
-      {showDetailModal && selectedBook && (
+      {/* 3. 도서 상세 기록 (개인버전 UX: 통합 타임라인 + 인라인 작성, AI 초안, 나의 감상문) */}
+      {showDetailModal && activeDetailBook && (
         <div className="modal">
           <div className="modal-backdrop" onClick={() => setShowDetailModal(false)}></div>
           <div className="modal-card detail-modal-card">
-            <div className="section-title-row">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <h2>도서 상세 기록</h2>
-                  {checkIsOwner(selectedBook) ? (
-                    <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">✨ 내 서재</span>
-                  ) : (
-                    <span className="text-xs bg-stone-100 text-stone-600 font-medium px-2 py-0.5 rounded-full">🔒 {selectedBook.nickname}님의 서재 (읽기 전용)</span>
-                  )}
+            {/* 상단 헤더 */}
+            <div className="section-title-row flex-wrap gap-3" style={{ paddingBottom: '14px', marginBottom: 0, borderBottom: '1px solid var(--line)' }}>
+              <div className="flex gap-4 items-center min-w-0">
+                {activeDetailBook.coverUrl ? (
+                  <img
+                    src={activeDetailBook.coverUrl}
+                    alt={activeDetailBook.title}
+                    className="w-16 h-24 object-cover rounded-xl shadow-md border border-stone-200 flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-16 h-24 rounded-xl bg-amber-100 text-amber-900 border border-amber-200 flex items-center justify-center text-[11px] font-bold text-center p-1.5 flex-shrink-0">
+                    {activeDetailBook.title}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold">
+                      {activeDetailBook.progressPercent || 0}% 완독
+                    </span>
+                    <span className="text-xs text-stone-500 font-medium detail-header-meta">
+                      전체 {activeDetailBook.totalPages || '?'}쪽 ({activeDetailBook.readPages || 0}쪽 읽음)
+                    </span>
+                    {checkIsOwner(activeDetailBook) ? (
+                      <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                        ✨ 내 서재
+                      </span>
+                    ) : (
+                      <span className="text-xs bg-stone-100 text-stone-600 font-medium px-2 py-0.5 rounded-full">
+                        🔒 {activeDetailBook.nickname}님의 서재 (읽기 전용)
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-lg font-bold text-stone-900 leading-snug mb-0.5 detail-header-title">
+                    {activeDetailBook.title}
+                  </h2>
+                  <p className="text-xs text-stone-600 detail-header-meta">
+                    {[activeDetailBook.author, activeDetailBook.publisher].filter(Boolean).join(' · ')}
+                  </p>
                 </div>
-                <p className="subtitle font-bold text-amber-800">{selectedBook.title}</p>
               </div>
-              <div className="flex items-center gap-2">
-                {checkIsOwner(selectedBook) && (
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {checkIsOwner(activeDetailBook) && (
                   <button
+                    type="button"
                     className="ghost-button text-xs"
                     onClick={() => {
-                      setManualTitle(selectedBook.title);
-                      setManualAuthor(selectedBook.author);
-                      setManualPublisher(selectedBook.publisher);
-                      setManualPages(selectedBook.totalPages);
-                      setManualDesc(selectedBook.description);
-                      setManualCover(selectedBook.coverUrl);
+                      setSelectedBook(activeDetailBook);
+                      setManualTitle(activeDetailBook.title);
+                      setManualAuthor(activeDetailBook.author);
+                      setManualPublisher(activeDetailBook.publisher);
+                      setManualPages(activeDetailBook.totalPages);
+                      setManualDesc(activeDetailBook.description);
+                      setManualCover(activeDetailBook.coverUrl);
                       setShowEditBookModal(true);
                     }}
                   >
                     ⚙️ 도서 관리
                   </button>
                 )}
-                <button className="ghost-button" onClick={() => setShowDetailModal(false)}>닫기</button>
+                <button
+                  type="button"
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 transition"
+                  onClick={() => setShowDetailModal(false)}
+                >
+                  닫기
+                </button>
               </div>
             </div>
 
-            <div className="detail-tabs">
-              <button className={`tab-btn ${detailTab === 'timeline' ? 'active' : ''}`} onClick={() => setDetailTab('timeline')}>
-                통합 타임라인 ({timelineItems.length})
+            {/* 탭 네비게이션 */}
+            <div className="library-tabs" style={{ marginTop: '12px', marginBottom: '14px' }}>
+              <button
+                type="button"
+                className={`lib-tab-btn ${detailTab === 'timeline' ? 'active' : ''}`}
+                onClick={() => setDetailTab('timeline')}
+              >
+                통합 타임라인 ({sortedTimelineItems.length})
               </button>
-              <button className={`tab-btn ${detailTab === 'ai' ? 'active' : ''}`} onClick={() => setDetailTab('ai')}>
+              <button
+                type="button"
+                className={`lib-tab-btn ${detailTab === 'ai' ? 'active' : ''}`}
+                onClick={() => setDetailTab('ai')}
+              >
                 ✨ AI 초안
               </button>
-              <button className={`tab-btn ${detailTab === 'my' ? 'active' : ''}`} onClick={() => setDetailTab('my')}>
+              <button
+                type="button"
+                className={`lib-tab-btn ${detailTab === 'my' ? 'active' : ''}`}
+                onClick={() => setDetailTab('my')}
+              >
                 ✍️ 나의 감상문
               </button>
             </div>
 
-            {/* 타임라인 탭 */}
-            {detailTab === 'timeline' && (
-              <div>
-                {checkIsOwner(selectedBook) ? (
-                  <div className="flex gap-2 mb-4">
-                    <button
-                      className="flex-1 text-xs py-2"
-                      onClick={() => {
-                        setEditingLogId(null);
-                        setReadPages(selectedBook.readPages || '');
-                        setNote('');
-                        setLogImageUrl('');
-                        setShowLogModal(true);
-                      }}
-                    >
-                      + 진도 기록 추가
-                    </button>
-                    <button
-                      className="flex-1 text-xs py-2 insight-btn"
-                      onClick={() => {
-                        setEditingPageLogId(null);
-                        setInsightPage('');
-                        setInsightNotes('');
-                        setInsightImageUrl('');
-                        setShowInsightModal(true);
-                      }}
-                    >
-                      + 문장 수집 추가
-                    </button>
-                  </div>
-                ) : (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 mb-4 flex items-center gap-2">
-                    <span>🔒</span>
-                    <span>이 도서는 <strong>{selectedBook.nickname}</strong>님의 도서입니다. 타인의 도서에는 진도나 문장을 추가할 수 없으며, 열람 및 공감(❤️)만 가능합니다.</span>
-                  </div>
-                )}
+            {/* 스크롤 본문 영역 */}
+            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
+              {/* 1. 통합 타임라인 탭 */}
+              {detailTab === 'timeline' && (
+                <div className="space-y-4">
+                  {/* 상단 간편 등록 2버튼 체제 또는 읽기 전용 안내 */}
+                  {checkIsOwner(activeDetailBook) ? (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setActiveDetailForm((prev) => (prev === 'log' ? 'none' : 'log'))}
+                        className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm ${
+                          activeDetailForm === 'log'
+                            ? 'bg-amber-700 hover:bg-amber-800 text-white shadow-inner'
+                            : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300/80'
+                        }`}
+                      >
+                        <span>📖</span>
+                        <span>{activeDetailForm === 'log' ? '독서일지 폼 닫기' : '+ 독서일지 작성'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveDetailForm((prev) => (prev === 'insight' ? 'none' : 'insight'))}
+                        className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm ${
+                          activeDetailForm === 'insight'
+                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-inner'
+                            : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300/80'
+                        }`}
+                      >
+                        <span>💡</span>
+                        <span>{activeDetailForm === 'insight' ? '문장수집 폼 닫기' : '+ 문장수집 작성'}</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center gap-2">
+                      <span>🔒</span>
+                      <span>이 도서는 <strong>{activeDetailBook.nickname}</strong>님의 도서입니다. 타인의 도서에는 진도나 문장을 추가할 수 없으며, 열람 및 공감(❤️)만 가능합니다.</span>
+                    </div>
+                  )}
 
-                {timelineLoading ? (
-                  <div className="text-center py-8 text-stone-500">노션에서 기록을 불러오는 중입니다...</div>
-                ) : timelineItems.length === 0 ? (
-                  <div className="text-center py-8 text-stone-500">
-                    {checkIsOwner(selectedBook)
-                      ? '아직 기록된 진도나 문장 수집이 없습니다. 상단의 [+ 진도 기록 추가] 또는 [+ 문장 수집 추가]를 눌러보세요!'
-                      : '아직 등록된 진도나 문장 수집이 없습니다.'}
-                  </div>
-                ) : (
-                  <div className="timeline-container">
-                    {timelineItems.map((item) => {
-                      const canDelete = checkIsOwner(selectedBook) || (nickname && item.nickname && nickname.trim() === item.nickname.trim());
-                      return (
-                        <div key={item.id} className={`timeline-item ${item.type === 'insight' ? 'insight-type' : ''}`}>
-                          <div className="flex justify-between items-center text-xs text-stone-500 mb-1">
-                            <span className="font-bold text-amber-900">
-                              {item.type === 'log' ? `📅 [진도] ${item.date} (${item.page}쪽까지)` : `💡 [문장수집] ${item.date} (${item.page}쪽)`}
-                            </span>
-                            <div className="flex gap-2 items-center">
-                              <span className="text-stone-400">by {item.nickname}</span>
+                  {/* A. 독서일지 작성 인라인 폼 */}
+                  {activeDetailForm === 'log' && checkIsOwner(activeDetailBook) && (
+                    <form onSubmit={handleSubmitInlineLog} className="bg-amber-50/70 p-4 rounded-2xl border border-amber-200 space-y-3 detail-inline-form-log">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-amber-950 flex items-center gap-1 detail-feed-heading">
+                          <span>📖</span> 새 독서일지 작성
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs font-semibold text-amber-700 hover:text-amber-800 cursor-pointer flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-amber-200">
+                            <span>📷 사진 본문 인식(OCR)</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) handleInlinePhotoOcr(e.target.files[0], 'log');
+                              }}
+                              disabled={inlineLogOcrLoading}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setActiveDetailForm('none')}
+                            className="bg-transparent hover:bg-stone-100 text-xs text-stone-400 hover:text-stone-700 px-1.5 py-0.5 rounded-lg"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+
+                      {inlineLogOcrLoading && (
+                        <p className="text-xs text-amber-700 animate-pulse font-medium">
+                          🤖 AI가 사진 속 문장을 읽어내는 중입니다...
+                        </p>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-stone-700 mb-1">읽은 날짜</label>
+                          <input
+                            type="date"
+                            value={inlineLogDate}
+                            onChange={(e) => setInlineLogDate(e.target.value)}
+                            className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white min-w-0 box-border text-stone-900"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-stone-700 mb-1">읽은 페이지 (누적 쪽수)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder={`최대 ${activeDetailBook.totalPages || ''}p`}
+                            value={inlineLogPage}
+                            onChange={(e) => setInlineLogPage(e.target.value ? Number(e.target.value) : '')}
+                            className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white min-w-0 box-border text-stone-900 font-semibold"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <textarea
+                          rows={3}
+                          placeholder="오늘 읽은 내용과 나의 생각을 자유롭게 남겨보세요..."
+                          value={inlineLogContent}
+                          onChange={(e) => setInlineLogContent(e.target.value)}
+                          className="w-full px-3 py-2.5 text-sm rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white box-border text-stone-900"
+                          required
+                        ></textarea>
+                      </div>
+
+                      {inlineLogImageUrl && (
+                        <div className="flex items-center gap-2 p-2 bg-white rounded-xl border border-amber-300">
+                          <img src={inlineLogImageUrl} alt="첨부 사진" className="w-12 h-12 object-cover rounded-lg border" />
+                          <span className="text-xs text-amber-900 font-medium flex-1">📷 사진 첨부됨 (노션 본문에도 영구 저장)</span>
+                          <button
+                            type="button"
+                            onClick={() => setInlineLogImageUrl('')}
+                            className="text-xs text-stone-700 hover:text-stone-900 px-2 py-1 bg-stone-100 hover:bg-stone-200 rounded border"
+                          >
+                            사진 취소
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex justify-end gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setActiveDetailForm('none')}
+                          className="px-3.5 py-2 text-xs font-bold rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-800 transition"
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submittingInlineLog || inlineLogOcrLoading}
+                          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow transition disabled:opacity-50"
+                        >
+                          {submittingInlineLog ? '저장 중...' : '독서일지 저장'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* B. 문장수집 작성 인라인 폼 */}
+                  {activeDetailForm === 'insight' && checkIsOwner(activeDetailBook) && (
+                    <form onSubmit={handleSubmitInlineInsight} className="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200 space-y-3 detail-inline-form-insight">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-emerald-950 flex items-center gap-1 detail-feed-heading">
+                          <span>💡</span> 새 문장 수집하기
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs font-semibold text-emerald-800 hover:text-emerald-900 cursor-pointer flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-emerald-200">
+                            <span>📷 책 본문 촬영(OCR)</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) handleInlinePhotoOcr(e.target.files[0], 'insight');
+                              }}
+                              disabled={inlineInsightOcrLoading}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setActiveDetailForm('none')}
+                            className="bg-transparent hover:bg-stone-100 text-xs text-stone-400 hover:text-stone-700 px-1.5 py-0.5 rounded-lg"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+
+                      {inlineInsightOcrLoading && (
+                        <p className="text-xs text-emerald-700 animate-pulse font-medium">
+                          🤖 AI가 사진 속 문장을 읽어내는 중입니다...
+                        </p>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-stone-700 mb-1">페이지 번호</label>
+                          <input
+                            type="text"
+                            placeholder="예: p.124"
+                            value={inlineInsightPage}
+                            onChange={(e) => setInlineInsightPage(e.target.value)}
+                            className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white min-w-0 box-border text-stone-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-stone-700 mb-1">수집 날짜</label>
+                          <input
+                            type="date"
+                            value={inlineInsightDate}
+                            onChange={(e) => setInlineInsightDate(e.target.value)}
+                            className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white min-w-0 box-border text-stone-900"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <textarea
+                          rows={4}
+                          placeholder="기억하고 싶은 인상 깊은 문장과 나의 단상을 입력하세요..."
+                          value={inlineInsightQuote}
+                          onChange={(e) => setInlineInsightQuote(e.target.value)}
+                          className="w-full px-3 py-2.5 text-sm rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white box-border text-stone-900"
+                          required
+                        ></textarea>
+                      </div>
+
+                      {inlineInsightImageUrl && (
+                        <div className="flex items-center gap-2 p-2 bg-white rounded-xl border border-emerald-300">
+                          <img src={inlineInsightImageUrl} alt="첨부 사진" className="w-12 h-12 object-cover rounded-lg border" />
+                          <span className="text-xs text-emerald-950 font-medium flex-1">📷 사진 첨부됨 (노션 본문에도 영구 저장)</span>
+                          <button
+                            type="button"
+                            onClick={() => setInlineInsightImageUrl('')}
+                            className="text-xs text-stone-700 hover:text-stone-900 px-2 py-1 bg-stone-100 hover:bg-stone-200 rounded border"
+                          >
+                            사진 취소
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex justify-end gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setActiveDetailForm('none')}
+                          className="px-3.5 py-2 text-xs font-bold rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-800 transition"
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submittingInlineInsight || inlineInsightOcrLoading}
+                          className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow transition disabled:opacity-50"
+                        >
+                          {submittingInlineInsight ? '저장 중...' : '문장 저장'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* C. 통합 독서 피드 (최신순 정렬) */}
+                  <div className="space-y-3 pt-1">
+                    <div className="flex items-center justify-between text-xs text-stone-500 px-1 detail-header-meta">
+                      <span className="font-bold text-stone-700 uppercase tracking-wider detail-feed-heading">
+                        통합 독서 피드 (최신순)
+                      </span>
+                      <span>총 {sortedTimelineItems.length}개의 기록</span>
+                    </div>
+
+                    {timelineLoading ? (
+                      <div className="text-center py-8 text-stone-500 detail-header-meta">노션에서 기록을 불러오는 중입니다...</div>
+                    ) : sortedTimelineItems.length === 0 ? (
+                      <div className="text-center py-10 bg-stone-50/70 rounded-2xl border border-dashed border-stone-300 space-y-2 detail-empty-box">
+                        <span className="text-2xl">📖</span>
+                        <p className="text-sm font-semibold text-stone-600 detail-feed-text">아직 작성된 일지나 문장이 없습니다.</p>
+                        <p className="text-xs text-stone-400 detail-header-meta">
+                          {checkIsOwner(activeDetailBook)
+                            ? '상단의 [+ 독서일지 작성] 또는 [+ 문장수집 작성] 버튼을 눌러 첫 기록을 남겨보세요!'
+                            : '아직 등록된 진도나 문장 수집이 없습니다.'}
+                        </p>
+                      </div>
+                    ) : (
+                      sortedTimelineItems.map((item) => {
+                        const canDelete =
+                          checkIsOwner(activeDetailBook) ||
+                          (nickname && item.nickname && nickname.trim() === item.nickname.trim());
+                        return item.type === 'log' ? (
+                          /* 독서일지 카드 */
+                          <div
+                            key={`log-${item.id}`}
+                            className="p-4 bg-white rounded-2xl border border-amber-200/80 shadow-sm hover:shadow transition detail-feed-log-card"
+                          >
+                            <div className="flex items-center justify-between text-xs mb-2 gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold flex items-center gap-1">
+                                  <span>📖</span> 독서일지
+                                </span>
+                                <span className="font-semibold text-stone-600 font-mono detail-header-meta">
+                                  {item.page}p 읽음
+                                </span>
+                                <span className="text-stone-400">·</span>
+                                <span className="text-stone-500 detail-header-meta">{item.date}</span>
+                                {item.nickname && item.nickname !== activeDetailBook.nickname && (
+                                  <>
+                                    <span className="text-stone-400">·</span>
+                                    <span className="text-stone-400">by {item.nickname}</span>
+                                  </>
+                                )}
+                              </div>
                               {canDelete && (
                                 <button
-                                  className="text-stone-400 hover:text-red-600 bg-transparent border-0 p-0 text-xs"
-                                  onClick={() => (item.type === 'log' ? handleDeleteLog(item.id) : handleDeleteInsight(item.id))}
+                                  type="button"
+                                  onClick={() => handleDeleteLog(item.id)}
+                                  className="bg-transparent hover:bg-rose-50 text-stone-400 hover:text-rose-600 transition px-2 py-1 rounded-lg text-xs font-medium flex-shrink-0"
+                                  title="독서일지 삭제"
                                 >
-                                  삭제
+                                  삭제 🗑️
                                 </button>
                               )}
                             </div>
+                            <p className="text-sm text-stone-800 whitespace-pre-line leading-relaxed pl-1 detail-feed-text">
+                              {item.content}
+                            </p>
                           </div>
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap text-stone-800">{item.content}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* AI 감상문 탭 */}
-            {detailTab === 'ai' && (
-              <div>
-                {checkIsOwner(selectedBook) ? (
-                  <div className="ai-control-box">
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                      <span className="text-xs font-bold text-amber-900">
-                        현재 AI 엔진: {activeAiName}
-                      </span>
-                      <button
-                        type="button"
-                        className="ghost-button text-xs py-1 px-2.5"
-                        onClick={() => setShowSettingsModal(true)}
-                      >
-                        ⚙️ AI 변경
-                      </button>
-                    </div>
-                    <p>누적된 진도와 문장 기록들을 바탕으로 {activeAiName} AI가 1인칭 독자의 독서 감상문 초안을 작성합니다.</p>
-                    <button className="mt-3 w-full" onClick={handleGenerateAi} disabled={aiLoading}>
-                      {aiLoading ? `🤖 ${activeAiName}가 감상문을 분석하고 작성 중입니다...` : `✨ ${activeAiName} 감상문 생성하기`}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-600 mb-3">
-                    💡 도서 등록자(<strong>{selectedBook.nickname}</strong>님)만 AI 감상문을 생성 및 갱신할 수 있습니다.
-                  </div>
-                )}
-
-                {aiReport ? (
-                  <div className="mt-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-bold text-amber-900">생성된 AI 독후감</span>
-                      <button
-                        className="ghost-button text-xs py-1 px-2"
-                        onClick={() => {
-                          navigator.clipboard.writeText(aiReport);
-                          alert('클립보드에 감상문이 복사되었습니다!');
-                        }}
-                      >
-                        📋 초안 복사하기
-                      </button>
-                    </div>
-                    <div className="ai-report-box">{aiReport}</div>
-                  </div>
-                ) : !checkIsOwner(selectedBook) ? (
-                  <div className="text-center py-8 text-stone-500 text-sm">
-                    아직 등록자({selectedBook.nickname}님)가 생성한 AI 감상문이 없습니다.
-                  </div>
-                ) : null}
-              </div>
-            )}
-
-            {/* 나의 감상문 탭 */}
-            {detailTab === 'my' && (
-              <div className="space-y-3">
-                {checkIsOwner(selectedBook) ? (
-                  <>
-                    <p className="text-xs text-stone-500">나만의 최종 감상문을 작성해 보세요. 저장 시 노션 도서 본문에 콜아웃 블록으로 박제됩니다.</p>
-                    <textarea
-                      rows={10}
-                      placeholder="이 책을 읽고 느낀 나만의 생각을 자유롭게 적어주세요..."
-                      value={myReport}
-                      onChange={(e) => setMyReport(e.target.value)}
-                    ></textarea>
-                    <div className="text-right">
-                      <button onClick={handleSaveMyReport} disabled={myReportSaving}>
-                        {myReportSaving ? '노션으로 저장 중...' : '노션으로 내보내기 & 저장'}
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div>
-                    <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-600 mb-3">
-                      💡 <strong>{selectedBook.nickname}</strong>님이 작성한 최종 독서 감상문입니다. (읽기 전용)
-                    </div>
-                    {myReport ? (
-                      <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-stone-800 text-sm whitespace-pre-wrap leading-relaxed">
-                        {myReport}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-stone-500 text-sm">
-                        아직 등록자({selectedBook.nickname}님)가 작성한 감상문이 없습니다.
-                      </div>
+                        ) : (
+                          /* 문장수집 카드 (글자기울임 표시) */
+                          <div
+                            key={`insight-${item.id}`}
+                            className="p-4 bg-emerald-50/40 rounded-2xl border border-emerald-200/80 shadow-sm hover:shadow transition detail-feed-insight-card"
+                          >
+                            <div className="flex items-center justify-between text-xs mb-2 gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 font-bold flex items-center gap-1">
+                                  <span>💡</span> 문장수집
+                                </span>
+                                <span className="font-semibold text-emerald-900 font-mono">
+                                  {item.page ? `${item.page}` : '페이지 미정'}
+                                </span>
+                                <span className="text-stone-400">·</span>
+                                <span className="text-stone-500 detail-header-meta">{item.date}</span>
+                                {item.nickname && item.nickname !== activeDetailBook.nickname && (
+                                  <>
+                                    <span className="text-stone-400">·</span>
+                                    <span className="text-stone-400">by {item.nickname}</span>
+                                  </>
+                                )}
+                              </div>
+                              {canDelete && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteInsight(item.id)}
+                                  className="bg-transparent hover:bg-rose-50 text-stone-400 hover:text-rose-600 transition px-2 py-1 rounded-lg text-xs font-medium flex-shrink-0"
+                                  title="문장수집 삭제"
+                                >
+                                  삭제 🗑️
+                                </button>
+                              )}
+                            </div>
+                            <blockquote
+                              className="text-sm text-stone-800 italic border-l-4 border-emerald-500 pl-3 leading-relaxed whitespace-pre-line bg-white/60 p-2.5 rounded-r-xl detail-feed-insight-quote"
+                              style={{ fontStyle: 'italic' }}
+                            >
+                              {item.content}
+                            </blockquote>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+
+              {/* AI 감상문 탭 */}
+              {detailTab === 'ai' && (
+                <div>
+                  {checkIsOwner(activeDetailBook) ? (
+                    <div className="ai-control-box">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <span className="text-xs font-bold text-amber-900">
+                          현재 AI 엔진: {activeAiName}
+                        </span>
+                        <button
+                          type="button"
+                          className="ghost-button text-xs py-1 px-2.5"
+                          onClick={() => setShowSettingsModal(true)}
+                        >
+                          ⚙️ AI 변경
+                        </button>
+                      </div>
+                      <p>누적된 진도와 문장 기록들을 바탕으로 {activeAiName} AI가 1인칭 독자의 독서 감상문 초안을 작성합니다.</p>
+                      <button className="mt-3 w-full" onClick={handleGenerateAi} disabled={aiLoading}>
+                        {aiLoading ? `🤖 ${activeAiName}가 감상문을 분석하고 작성 중입니다...` : `✨ ${activeAiName} 감상문 생성하기`}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-600 mb-3">
+                      💡 도서 등록자(<strong>{activeDetailBook.nickname}</strong>님)만 AI 감상문을 생성 및 갱신할 수 있습니다.
+                    </div>
+                  )}
+
+                  {aiReport ? (
+                    <div className="mt-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-bold text-amber-900">생성된 AI 독후감</span>
+                        <button
+                          className="ghost-button text-xs py-1 px-2"
+                          onClick={() => {
+                            navigator.clipboard.writeText(aiReport);
+                            alert('클립보드에 감상문이 복사되었습니다!');
+                          }}
+                        >
+                          📋 초안 복사하기
+                        </button>
+                      </div>
+                      <div className="ai-report-box">{aiReport}</div>
+                    </div>
+                  ) : !checkIsOwner(activeDetailBook) ? (
+                    <div className="text-center py-8 text-stone-500 text-sm">
+                      아직 등록자({activeDetailBook.nickname}님)가 생성한 AI 감상문이 없습니다.
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              {/* 나의 감상문 탭 */}
+              {detailTab === 'my' && (
+                <div className="space-y-3">
+                  {checkIsOwner(activeDetailBook) ? (
+                    <>
+                      <p className="text-xs text-stone-500">나만의 최종 감상문을 작성해 보세요. 저장 시 노션 도서 본문에 콜아웃 블록으로 박제됩니다.</p>
+                      <textarea
+                        rows={10}
+                        placeholder="이 책을 읽고 느낀 나만의 생각을 자유롭게 적어주세요..."
+                        value={myReport}
+                        onChange={(e) => setMyReport(e.target.value)}
+                      ></textarea>
+                      <div className="text-right">
+                        <button onClick={handleSaveMyReport} disabled={myReportSaving}>
+                          {myReportSaving ? '노션으로 저장 중...' : '노션으로 내보내기 & 저장'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-600 mb-3">
+                        💡 <strong>{activeDetailBook.nickname}</strong>님이 작성한 최종 독서 감상문입니다. (읽기 전용)
+                      </div>
+                      {myReport ? (
+                        <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-stone-800 text-sm whitespace-pre-wrap leading-relaxed">
+                          {myReport}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-stone-500 text-sm">
+                          아직 등록자({activeDetailBook.nickname}님)가 작성한 감상문이 없습니다.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 하단 푸터 */}
+            <div className="mt-4 p-4 bg-stone-50 border-t border-stone-200 rounded-xl flex items-center justify-between detail-modal-footer">
+              {checkIsOwner(activeDetailBook) ? (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteBook(activeDetailBook.bookId)}
+                  className="px-3.5 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition flex items-center gap-1.5"
+                >
+                  <span>🗑️</span>
+                  <span>도서 삭제</span>
+                </button>
+              ) : (
+                <div />
+              )}
+              <button
+                type="button"
+                onClick={() => setShowDetailModal(false)}
+                className="px-5 py-2 text-xs sm:text-sm font-bold rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-800 transition"
+              >
+                닫기
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1675,16 +2200,28 @@ export default function Home() {
 
             <div className="pt-3 border-t">
               <span className="text-xs font-bold text-stone-600 block mb-2">👤 현재 로그인 프로필</span>
-              <div className="p-3 bg-amber-50 border rounded-xl flex justify-between items-center">
+              <div className="p-3 bg-amber-50 border rounded-xl flex flex-wrap justify-between items-center gap-2">
                 <div>
                   <p className="font-bold text-sm">{nickname ? nickname : '미로그인 (입장 전 / 둘러보기)'}</p>
                   <p className="text-xs text-stone-500">
                     {nickname ? `PIN: ${pin ? '••••' : '미입력'}` : '닉네임으로 입장하면 내 서재를 기록할 수 있습니다.'}
                   </p>
                 </div>
-                <button className="ghost-button text-xs" onClick={() => { setShowSettingsModal(false); setShowLoginModal(true); }}>
-                  {nickname ? '프로필 변경' : '로그인 / 등록'}
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button className="ghost-button text-xs" onClick={() => { setShowSettingsModal(false); setShowLoginModal(true); }}>
+                    {nickname ? '프로필 변경' : '로그인 / 등록'}
+                  </button>
+                  {(nickname || user) && (
+                    <button
+                      type="button"
+                      className="ghost-button text-xs"
+                      style={{ color: 'var(--danger)', borderColor: '#f2c9c5' }}
+                      onClick={() => handleLogout()}
+                    >
+                      🚪 로그아웃
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 

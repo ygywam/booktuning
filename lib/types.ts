@@ -60,6 +60,7 @@ export interface TimelineItem {
   imageUrl?: string;
   nickname: string;
   userId?: string;
+  createdAt?: string;
 }
 
 export type AiProvider = 'gemini' | 'exaone';

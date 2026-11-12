@@ -4,7 +4,7 @@ import { notion, INSIGHT_DB_ID, findUserIdByNickname, uploadImageToNotion } from
 // 1. 문장수집 등록 (POST)
 export async function POST(request: Request) {
   try {
-    const { bookNotionPageId, page, notes, nickname, userId, imageUrl } = await request.json();
+    const { bookNotionPageId, page, notes, nickname, userId, imageUrl, readDate } = await request.json();
 
     if (!INSIGHT_DB_ID || !bookNotionPageId) {
       return NextResponse.json({ ok: false, error: 'INSIGHT_DB_ID 또는 책 ID가 누락되었습니다.' }, { status: 400 });
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       console.warn('도서 소유자 확인 오류:', e.message);
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    const targetDate = readDate || new Date().toISOString().split('T')[0];
 
     const payload: any = {
       parent: { database_id: INSIGHT_DB_ID },
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
         '내용': { title: [{ text: { content: (notes || '').substring(0, 1999) } }] },
         '관련 책': { relation: [{ id: bookNotionPageId }] },
         '페이지': { rich_text: [{ text: { content: String(page || '') } }] },
-        '읽은날짜': { date: { start: today } },
+        '읽은날짜': { date: { start: targetDate } },
       },
     };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BookOpen, Sparkles, Camera, ArrowRight, Settings, HelpCircle } from 'lucide-react';
 import { WebGLShader } from '@/components/ui/web-gl-shader';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
@@ -32,6 +32,11 @@ export function LandingGate({
   const [nickInput, setNickInput] = useState(initialNickname);
   const [pinInput, setPinInput] = useState(initialPin);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setNickInput(initialNickname);
+    setPinInput(initialPin);
+  }, [initialNickname, initialPin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
