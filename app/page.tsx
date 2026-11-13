@@ -1,8 +1,24 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { AiProvider, AiStatusInfo, Book, TimelineItem, User } from '../lib/types';
-import { LandingGate } from '../components/LandingGate';
+import {
+  AiProvider,
+  AiStatusInfo,
+  Book,
+  InsightLog,
+  MainTabId,
+  ReadingLog,
+  TimelineItem,
+  User,
+} from '@/lib/types';
+import { LandingGate } from '@/components/LandingGate';
+import HomeTab from '@/components/tabs/HomeTab';
+import LibraryTab from '@/components/tabs/LibraryTab';
+import FeedTab from '@/components/tabs/FeedTab';
+import DexTab from '@/components/tabs/DexTab';
+import BottomNav from '@/components/BottomNav';
+import SpotlightTutorial from '@/components/SpotlightTutorial';
+import AppInfoModals from '@/components/AppInfoModals';
 
 export default function Home() {
   // 1. 유저 및 세션 상태
@@ -15,20 +31,22 @@ export default function Home() {
   const [aiProvider, setAiProvider] = useState<AiProvider>('gemini');
   const [aiStatus, setAiStatus] = useState<AiStatusInfo | null>(null);
 
-  // 2. 도서 서재 상태 (기본: 커뮤니티 전체)
-  const [books, setBooks] = useState<Book[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'all' | 'my' | 'rank'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'reading' | 'done'>('all');
-  const [sortBy, setSortBy] = useState<'latest' | 'progress' | 'title' | 'likes'>('latest');
+  // 2. 4대 메인 탭 상태 (기본: 홈)
+  const [activeTab, setActiveTab] = useState<MainTabId>('home');
 
-  // 3. 도서 검색 상태 및 API 선택 (카카오, 알라딘, 네이버)
+  // 3. 도서 서재 상태
+  const [books, setBooks] = useState<Book[]>([]);
+  const [allLogs, setAllLogs] = useState<ReadingLog[]>([]);
+  const [allInsights, setAllInsights] = useState<InsightLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // 4. 도서 검색 상태 (카카오 표준 / 알라딘·네이버 종료 고지)
   const [searchQuery, setSearchQuery] = useState('');
   const [searchApiType, setSearchApiType] = useState<'kakao' | 'aladin' | 'naver'>('kakao');
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  // 4. 모달 상태
+  // 5. 모달 상태
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showManualBookModal, setShowManualBookModal] = useState(false);
   const [showLogModal, setShowLogModal] = useState(false);
@@ -41,7 +59,7 @@ export default function Home() {
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [showCopyrightModal, setShowCopyrightModal] = useState(false);
 
-  // 5. 선택된 도서 및 상세 뷰 상태
+  // 6. 선택된 도서 및 상세 뷰 상태
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [detailTab, setDetailTab] = useState<'timeline' | 'ai' | 'my'>('timeline');
   const [timelineLoading, setTimelineLoading] = useState(false);
@@ -51,129 +69,108 @@ export default function Home() {
   const [myReport, setMyReport] = useState('');
   const [myReportSaving, setMyReportSaving] = useState(false);
 
-  // 상세 모달 내 인라인 작성 폼 상태
+  // 인라인 독서일지 / 문장수집 입력 상태
   const [activeDetailForm, setActiveDetailForm] = useState<'none' | 'log' | 'insight'>('none');
   const [inlineLogDate, setInlineLogDate] = useState('');
-  const [inlineLogPage, setInlineLogPage] = useState<number | ''>('');
+  const [inlineLogPage, setInlineLogPage] = useState<number | string>('');
   const [inlineLogContent, setInlineLogContent] = useState('');
   const [inlineLogImageUrl, setInlineLogImageUrl] = useState('');
   const [inlineLogOcrLoading, setInlineLogOcrLoading] = useState(false);
   const [submittingInlineLog, setSubmittingInlineLog] = useState(false);
 
-  const [inlineInsightPage, setInlineInsightPage] = useState('');
   const [inlineInsightDate, setInlineInsightDate] = useState('');
+  const [inlineInsightPage, setInlineInsightPage] = useState<number | string>('');
   const [inlineInsightQuote, setInlineInsightQuote] = useState('');
   const [inlineInsightImageUrl, setInlineInsightImageUrl] = useState('');
   const [inlineInsightOcrLoading, setInlineInsightOcrLoading] = useState(false);
   const [submittingInlineInsight, setSubmittingInlineInsight] = useState(false);
 
-  // 6. 폼 상태들
-  const [readDate, setReadDate] = useState('');
-  const [readPages, setReadPages] = useState<number | ''>('');
+  // 별도 모달 입력 필드 상태
+  const [readPages, setReadPages] = useState<number | string>('');
   const [note, setNote] = useState('');
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [logImageUrl, setLogImageUrl] = useState('');
   const [logOcrLoading, setLogOcrLoading] = useState(false);
-  const [editingLogId, setEditingLogId] = useState<string | null>(null);
 
   const [insightPage, setInsightPage] = useState('');
   const [insightNotes, setInsightNotes] = useState('');
+  const [editingPageLogId, setEditingPageLogId] = useState<string | null>(null);
   const [insightImageUrl, setInsightImageUrl] = useState('');
   const [ocrLoading, setOcrLoading] = useState(false);
-  const [editingPageLogId, setEditingPageLogId] = useState<string | null>(null);
 
+  // 수동 도서 등록 폼
   const [manualTitle, setManualTitle] = useState('');
   const [manualAuthor, setManualAuthor] = useState('');
   const [manualPublisher, setManualPublisher] = useState('');
-  const [manualPages, setManualPages] = useState<number | ''>('');
-  const [manualDesc, setManualDesc] = useState('');
+  const [manualPages, setManualPages] = useState<number | string>('');
   const [manualCover, setManualCover] = useState('');
-  const [manualIsbn, setManualIsbn] = useState('');
-  const [manualSource, setManualSource] = useState('수동 직접 등록');
+  const [manualDesc, setManualDesc] = useState('');
 
-  // 도서 소유자 확인 (본인이 등록한 도서인지 검증)
-  const checkIsOwner = (b: Book | null) => {
-    if (!b || !nickname.trim()) return false;
-    if (user?.id && b.userId && user.id === b.userId) return true;
-    return nickname.trim() === (b.nickname || '').trim();
-  };
-
-  // 7. 초기화 로드
+  // 7. 로컬스토리지 초기 로드 & 테마 반영
   useEffect(() => {
-    const savedTheme = localStorage.getItem('app_theme') || 'theme-base';
-    setTheme(savedTheme);
-    document.body.className = savedTheme;
+    try {
+      const savedUser = localStorage.getItem('app_user');
+      const savedNickname = localStorage.getItem('app_nickname') || '';
+      const savedTheme = localStorage.getItem('app_theme') || 'theme-base';
+      const savedSearchApi = localStorage.getItem('search_api_type') as any;
+      const savedAiProvider = localStorage.getItem('ai_provider') as any;
+      const guestEntered = localStorage.getItem('guest_entered') === 'true';
 
-    const savedApiType = (localStorage.getItem('search_api_type') as any) || 'kakao';
-    setSearchApiType(savedApiType);
-
-    const savedAiProvider = (localStorage.getItem('ai_provider') as AiProvider) || 'gemini';
-    setAiProvider(savedAiProvider === 'exaone' ? 'exaone' : 'gemini');
-
-    const today = new Date().toISOString().split('T')[0];
-    setReadDate(today);
-    setInlineLogDate(today);
-    setInlineInsightDate(today);
-
-    let entered = false;
-    const savedUserStr = localStorage.getItem('app_user');
-    const savedNickname = localStorage.getItem('app_nickname');
-    const savedGuest = localStorage.getItem('guest_entered') === 'true';
-
-    if (savedUserStr) {
-      try {
-        const parsed = JSON.parse(savedUserStr);
-        setUser(parsed);
-        setNickname(parsed.nickname || savedNickname || '');
-        setPin(parsed.pin || '');
-        if (parsed.nickname || savedNickname) entered = true;
-      } catch (e) {
-        if (savedNickname) {
-          setNickname(savedNickname);
-          entered = true;
+      if (savedUser) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          setUser(parsedUser);
+          setNickname(parsedUser.nickname || savedNickname);
+          setPin(parsedUser.pin || '');
+          setHasEnteredLibrary(true);
+        } catch {
+          if (savedNickname) setNickname(savedNickname);
         }
+      } else if (savedNickname) {
+        setNickname(savedNickname);
       }
-    } else if (savedNickname) {
-      setNickname(savedNickname);
-      entered = true;
-    } else if (savedGuest) {
-      entered = true;
+
+      if (guestEntered) {
+        setHasEnteredLibrary(true);
+      }
+
+      setTheme(savedTheme);
+      document.body.className = savedTheme;
+
+      if (savedSearchApi && ['kakao', 'aladin', 'naver'].includes(savedSearchApi)) {
+        setSearchApiType(savedSearchApi);
+      }
+      if (savedAiProvider && ['gemini', 'exaone'].includes(savedAiProvider)) {
+        setAiProvider(savedAiProvider);
+      }
+    } finally {
+      setAuthChecked(true);
     }
+  }, []);
 
-    setHasEnteredLibrary(entered);
-    setAuthChecked(true);
-
-    fetchBooks();
+  // 서버 환경변수 내 AI 키 연결 상태 조회
+  useEffect(() => {
+    const fetchAiStatus = async () => {
+      try {
+        const res = await fetch('/api/ai-status');
+        const data = await res.json();
+        if (data.ok) {
+          setAiStatus({
+            geminiConfigured: data.geminiConfigured,
+            exaoneConfigured: data.exaoneConfigured,
+            geminiModel: data.geminiModel,
+            exaoneModel: data.exaoneModel,
+            exaoneVisionSupported: data.exaoneVisionSupported,
+          });
+        }
+      } catch (err) {
+        console.warn('AI 상태 조회 실패:', err);
+      }
+    };
     fetchAiStatus();
   }, []);
 
-  const fetchAiStatus = async () => {
-    try {
-      const res = await fetch('/api/ai-status');
-      const data = await res.json();
-      if (data.ok) {
-        setAiStatus(data);
-      }
-    } catch (err) {
-      console.warn('AI 상태 확인 건너뜀:', err);
-    }
-  };
-
-  const changeTheme = (newTheme: string) => {
-    setTheme(newTheme);
-    document.body.className = newTheme;
-    localStorage.setItem('app_theme', newTheme);
-  };
-
-  const changeSearchApiType = (newType: 'kakao' | 'aladin' | 'naver') => {
-    setSearchApiType(newType);
-    localStorage.setItem('search_api_type', newType);
-  };
-
-  const changeAiProvider = (nextProvider: AiProvider) => {
-    setAiProvider(nextProvider);
-    localStorage.setItem('ai_provider', nextProvider);
-  };
-
+  // 도서 목록 및 글로벌 타임라인 데이터 패치
   const fetchBooks = async () => {
     setLoading(true);
     try {
@@ -181,17 +178,53 @@ export default function Home() {
       const data = await res.json();
       if (data.ok) {
         setBooks(data.books || []);
-      } else {
-        console.error(data.error);
       }
     } catch (err) {
-      console.error('도서 목록 로딩 실패:', err);
+      console.error('도서 로딩 오류:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // 8. 사용자 로그인 / 등록 공용 인증 핸들러
+  const fetchGlobalTimeline = async () => {
+    try {
+      const res = await fetch('/api/timeline?bookId=all');
+      const data = await res.json();
+      if (data.ok) {
+        setAllLogs(data.readingLogs || []);
+        setAllInsights(data.pageLogs || []);
+      }
+    } catch (err) {
+      console.error('글로벌 피드 로딩 오류:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (hasEnteredLibrary) {
+      fetchBooks();
+      fetchGlobalTimeline();
+    }
+  }, [hasEnteredLibrary]);
+
+  // 내 도서 목록 계산
+  const myBooks = useMemo(() => {
+    if (!nickname.trim()) return [];
+    return books.filter((b) => {
+      const isNameMatch = b.nickname && b.nickname.trim() === nickname.trim();
+      const isUserMatch = user?.id && b.userId === user.id;
+      return isNameMatch || isUserMatch;
+    });
+  }, [books, nickname, user?.id]);
+
+  // 도서 소유자 확인
+  const checkIsOwner = (book: Book | null) => {
+    if (!book) return false;
+    if (user?.id && book.userId && book.userId === user.id) return true;
+    if (nickname && book.nickname && book.nickname.trim() === nickname.trim()) return true;
+    return false;
+  };
+
+  // 8. 사용자 인증 및 로그인 (LandingGate / 모달 연동)
   const authenticateUser = async (targetNickname: string, targetPin: string): Promise<boolean> => {
     try {
       const res = await fetch('/api/users', {
@@ -200,32 +233,24 @@ export default function Home() {
         body: JSON.stringify({ nickname: targetNickname.trim(), pin: targetPin.trim() }),
       });
       const data = await res.json();
-      if (data.ok) {
+      if (data.ok && data.user) {
         setUser(data.user);
         setNickname(data.user.nickname);
-        setPin(data.user.pin || targetPin.trim());
+        setPin(data.user.pin);
+        setHasEnteredLibrary(true);
         localStorage.setItem('app_user', JSON.stringify(data.user));
         localStorage.setItem('app_nickname', data.user.nickname);
         localStorage.removeItem('guest_entered');
-        setHasEnteredLibrary(true);
         setShowLoginModal(false);
-        alert(`반갑습니다, ${data.user.nickname}님! 북튜닝 서재에 입장하셨습니다. 📚`);
-        fetchBooks();
         return true;
       } else {
-        alert(data.error || '로그인에 실패했습니다.');
+        alert(data.error || '인증에 실패했습니다.');
         return false;
       }
     } catch (err) {
-      alert('로그인 통신 중 오류가 발생했습니다.');
+      alert('서버 통신 오류가 발생했습니다.');
       return false;
     }
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nickname.trim()) return alert('활동할 닉네임을 입력해 주세요.');
-    await authenticateUser(nickname, pin);
   };
 
   const handleBrowseAsGuest = () => {
@@ -233,11 +258,12 @@ export default function Home() {
     setHasEnteredLibrary(true);
   };
 
-  const handleLogout = (skipConfirm = false) => {
-    if (!skipConfirm && (nickname || user)) {
-      if (!confirm(`${nickname || '현재 계정'}에서 로그아웃하고 입장 화면으로 이동할까요?`)) {
-        return;
-      }
+  const handleLogout = (forceGateOnly: boolean = false) => {
+    if (
+      !forceGateOnly &&
+      !confirm('로그아웃하시겠습니까?\n현재 브라우저에 저장된 로그인 세션이 초기화되고 입장 화면으로 이동합니다.')
+    ) {
+      return;
     }
     localStorage.removeItem('app_user');
     localStorage.removeItem('app_nickname');
@@ -245,41 +271,60 @@ export default function Home() {
     setUser(null);
     setNickname('');
     setPin('');
-    setActiveTab('all');
     setHasEnteredLibrary(false);
     setShowLoginModal(false);
     setShowSettingsModal(false);
+    setActiveTab('home');
   };
 
-  // 9. 도서 검색 (다각화: kakao, aladin, naver)
+  // 9. 테마 및 환경 설정 변경
+  const changeTheme = (newTheme: string) => {
+    setTheme(newTheme);
+    document.body.className = newTheme;
+    localStorage.setItem('app_theme', newTheme);
+  };
+
+  const changeAiProvider = (newProvider: AiProvider) => {
+    setAiProvider(newProvider);
+    localStorage.setItem('ai_provider', newProvider);
+  };
+
+  const changeSearchApiType = (newApi: 'kakao' | 'aladin' | 'naver') => {
+    setSearchApiType(newApi);
+    localStorage.setItem('search_api_type', newApi);
+  };
+
+  // 10. 도서 검색 실행
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim()) return alert('검색어를 입력해 주세요.');
     setSearching(true);
+    setSearchResults([]);
     try {
       const res = await fetch(`/api/search-books?query=${encodeURIComponent(searchQuery)}&type=${searchApiType}`);
       const data = await res.json();
       if (data.ok) {
-        setSearchResults(data.books || []);
+        if (data.books.length === 0) {
+          alert('검색 결과가 없습니다. 도서명을 확인하거나 직접 등록을 이용해 주세요.');
+        } else {
+          setSearchResults(data.books);
+        }
       } else {
         alert(`검색 실패: ${data.error}`);
       }
     } catch (err) {
-      alert('도서 검색 중 오류가 발생했습니다.');
+      alert('도서 검색 통신 오류 발생');
     } finally {
       setSearching(false);
     }
   };
 
-  // 검색 결과 선택 시 확인 및 등록 폼 열기
   const handleSelectSearchResult = (book: any) => {
     setManualTitle(book.title || '');
     setManualAuthor(book.author || '');
     setManualPublisher(book.publisher || '');
-    setManualPages(book.totalPages > 0 ? book.totalPages : '');
-    setManualDesc(book.description || '');
+    setManualPages(book.totalPages || '');
     setManualCover(book.coverUrl || '');
-    setManualIsbn(book.isbn || '');
-    setManualSource(book.source || (searchApiType === 'aladin' ? 'Aladin API' : searchApiType === 'kakao' ? 'Kakao API' : 'Naver API'));
+    setManualDesc(book.description || '');
     setShowManualBookModal(true);
   };
 
@@ -288,16 +333,20 @@ export default function Home() {
     setManualAuthor('');
     setManualPublisher('');
     setManualPages('');
-    setManualDesc('');
     setManualCover('');
-    setManualIsbn('');
-    setManualSource('수동 직접 등록');
+    setManualDesc('');
     setShowManualBookModal(true);
   };
 
+  // 11. 수동 / 검색 결과 도서 등록
   const handleSubmitManualBook = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manualTitle.trim()) return alert('도서명을 입력해 주세요.');
+    if (!manualTitle.trim()) return alert('도서명을 입력하세요.');
+    if (!nickname.trim()) {
+      alert('도서를 등록하려면 먼저 닉네임으로 입장하거나 프로필을 등록해 주세요.');
+      setShowLoginModal(true);
+      return;
+    }
 
     try {
       const res = await fetch('/api/books', {
@@ -305,46 +354,35 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: manualTitle.trim(),
-          author: manualAuthor.trim() || '미상',
-          publisher: manualPublisher.trim() || '',
+          author: manualAuthor.trim(),
+          publisher: manualPublisher.trim(),
           totalPages: Number(manualPages) || 0,
-          description: manualDesc.trim() || '등록된 도서입니다.',
           coverUrl: manualCover.trim(),
-          isbn: manualIsbn.trim(),
-          source: manualSource.trim() || '수동 직접 등록',
-          nickname: nickname.trim() || '독서가',
+          description: manualDesc.trim(),
+          nickname: nickname.trim(),
           userId: user?.id,
         }),
       });
       const data = await res.json();
       if (data.ok) {
-        alert(`[${manualTitle.trim()}] 도서가 서재에 안전하게 등록되었습니다! ✨`);
+        alert('도서가 서재에 등록되었습니다! 📚');
         setShowManualBookModal(false);
-        setSearchResults([]);
         setSearchQuery('');
-        setManualTitle('');
-        setManualAuthor('');
-        setManualPublisher('');
-        setManualPages('');
-        setManualDesc('');
-        setManualCover('');
-        setManualIsbn('');
-        setManualSource('수동 직접 등록');
-        fetchBooks();
+        setSearchResults([]);
+        await Promise.all([fetchBooks(), fetchGlobalTimeline()]);
       } else {
-        alert(`등록 실패: ${data.error}`);
+        alert(`도서 등록 실패: ${data.error}`);
       }
     } catch (err) {
-      alert('도서 등록 중 오류가 발생했습니다.');
+      alert('도서 등록 오류 발생');
     }
   };
 
+  // 도서 수정 / 삭제
   const handleUpdateBook = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedBook) return;
-    if (!checkIsOwner(selectedBook)) {
-      return alert('본인이 등록한 도서만 수정할 수 있습니다.');
-    }
+    if (!checkIsOwner(selectedBook)) return alert('본인이 등록한 도서만 수정할 수 있습니다.');
 
     try {
       const res = await fetch('/api/books', {
@@ -352,151 +390,59 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookId: selectedBook.bookId,
+          title: manualTitle.trim(),
+          author: manualAuthor.trim(),
+          publisher: manualPublisher.trim(),
+          totalPages: Number(manualPages) || 0,
+          coverUrl: manualCover.trim(),
+          description: manualDesc.trim(),
           nickname: nickname.trim(),
-          title: manualTitle,
-          author: manualAuthor,
-          publisher: manualPublisher,
-          totalPages: Number(manualPages),
-          description: manualDesc,
-          coverUrl: manualCover,
         }),
       });
       const data = await res.json();
       if (data.ok) {
-        alert('도서 정보가 성공적으로 수정되었습니다! (노션 동기화 완료)');
+        alert('도서 정보가 수정되었습니다.');
         setShowEditBookModal(false);
-        fetchBooks();
-      } else {
-        alert(`수정 실패: ${data.error}`);
-      }
+        await Promise.all([fetchBooks(), fetchGlobalTimeline()]);
+      } else alert(`수정 실패: ${data.error}`);
     } catch (err) {
-      alert('도서 수정 오류 발생');
+      alert('도서 정보 수정 통신 오류');
     }
   };
 
   const handleDeleteBook = async (bookId: string) => {
-    if (!confirm('정말 이 책을 서재에서 삭제(노션 휴지통 아카이브)하시겠습니까?\n※ 연관된 모든 독서일지와 문장수집도 노션에서 함께 삭제됩니다.')) return;
+    if (!confirm('이 도서를 서재에서 완전히 삭제하시겠습니까?\n노션 데이터베이스에서도 삭제(아카이브)됩니다.')) return;
     try {
       const res = await fetch(`/api/books?bookId=${bookId}&nickname=${encodeURIComponent(nickname.trim())}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.ok) {
-        alert('도서와 연관 기록이 노션에서 안전하게 삭제되었습니다.');
-        setShowDetailModal(false);
+        alert('도서가 삭제되었습니다.');
         setShowEditBookModal(false);
-        fetchBooks();
-      } else {
-        alert(`삭제 실패: ${data.error}`);
-      }
+        setShowDetailModal(false);
+        setSelectedBook(null);
+        await Promise.all([fetchBooks(), fetchGlobalTimeline()]);
+      } else alert(`삭제 실패: ${data.error}`);
     } catch (err) {
-      alert('도서 삭제 오류 발생');
+      alert('삭제 통신 오류');
     }
   };
 
-  // 10. 진도 기록 등록/수정
-  const handleSubmitLog = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedBook) return;
-    if (!checkIsOwner(selectedBook)) {
-      return alert('본인이 등록한 도서에만 진도를 기록할 수 있습니다.');
-    }
-
-    try {
-      if (editingLogId) {
-        const res = await fetch('/api/logs', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            logId: editingLogId,
-            nickname: nickname.trim(),
-            readDate,
-            readPages: Number(readPages),
-            note,
-          }),
-        });
-        const data = await res.json();
-        if (data.ok) {
-          alert('진도 기록이 수정되었습니다.');
-          setEditingLogId(null);
-          setShowLogModal(false);
-          fetchTimeline(selectedBook.bookId);
-          fetchBooks();
-        } else alert(`수정 실패: ${data.error}`);
-      } else {
-        const res = await fetch('/api/logs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            bookNotionPageId: selectedBook.bookId,
-            readDate,
-            readPages: Number(readPages),
-            note,
-            imageUrl: logImageUrl,
-            nickname: nickname.trim(),
-            userId: user?.id,
-          }),
-        });
-        const data = await res.json();
-        if (data.ok) {
-          alert('오늘의 독서 진도가 노션에 기록되었습니다! 📖');
-          setShowLogModal(false);
-          setNote('');
-          setLogImageUrl('');
-          fetchTimeline(selectedBook.bookId);
-          fetchBooks();
-        } else alert(`저장 실패: ${data.error}`);
-      }
-    } catch (err) {
-      alert('진도 저장 중 오류 발생');
-    }
-  };
-
-  // 11. 사진 압축 & OCR (진도 기록 & 문장 수집 공용)
-  const compressImage = (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          let width = img.width;
-          let height = img.height;
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', quality));
-          } else {
-            resolve(e.target?.result as string);
-          }
-        };
-        img.onerror = () => resolve(e.target?.result as string);
-        img.src = e.target?.result as string;
-      };
-      reader.onerror = () => resolve('');
-      reader.readAsDataURL(file);
-    });
-  };
-
-  // 공용 OCR 이미지 분석 핸들러
+  // 12. 공통 OCR 이미지 판독 헬퍼
   const runOcrFromFile = async (
     file: File,
-    setBusy: (busy: boolean) => void,
-    onImageReady: (dataUrl: string) => void,
+    setBusy: (v: boolean) => void,
+    setImageUrl: (url: string) => void,
     onTextExtracted: (text: string) => void
   ) => {
     setBusy(true);
     try {
-      const base64Data = await compressImage(file);
-      if (!base64Data) {
-        alert('이미지를 읽을 수 없습니다.');
-        return;
-      }
-      onImageReady(base64Data);
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      setImageUrl(base64Data);
 
       const res = await fetch('/api/ocr', {
         method: 'POST',
@@ -520,118 +466,6 @@ export default function Home() {
     }
   };
 
-  // 진도 기록용 사진 OCR
-  const handleLogOcrImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await runOcrFromFile(file, setLogOcrLoading, setLogImageUrl, (ocrText) => {
-      setNote((prev) => (prev ? `${prev}\n\n${ocrText}` : ocrText));
-    });
-  };
-
-  // 문장 수집용 사진 OCR
-  const handleOcrImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await runOcrFromFile(file, setOcrLoading, setInsightImageUrl, (ocrText) => {
-      setInsightNotes((prev) => (prev ? `${prev}\n\n${ocrText}` : ocrText));
-    });
-  };
-
-  const handleSubmitInsight = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedBook) return;
-    if (!checkIsOwner(selectedBook)) {
-      return alert('본인이 등록한 도서에만 문장을 수집할 수 있습니다.');
-    }
-
-    try {
-      if (editingPageLogId) {
-        const res = await fetch('/api/insights', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            pageLogId: editingPageLogId,
-            nickname: nickname.trim(),
-            page: insightPage,
-            notes: insightNotes,
-          }),
-        });
-        const data = await res.json();
-        if (data.ok) {
-          alert('문장 수집이 수정되었습니다.');
-          setEditingPageLogId(null);
-          setShowInsightModal(false);
-          fetchTimeline(selectedBook.bookId);
-          fetchBooks();
-        } else alert(`수정 실패: ${data.error}`);
-      } else {
-        const res = await fetch('/api/insights', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            bookNotionPageId: selectedBook.bookId,
-            page: insightPage,
-            notes: insightNotes,
-            imageUrl: insightImageUrl,
-            nickname: nickname.trim(),
-            userId: user?.id,
-          }),
-        });
-        const data = await res.json();
-        if (data.ok) {
-          alert('감명 깊은 문장이 노션에 수집되었습니다! 💡');
-          setShowInsightModal(false);
-          setInsightPage('');
-          setInsightNotes('');
-          setInsightImageUrl('');
-          fetchTimeline(selectedBook.bookId);
-          fetchBooks();
-        } else alert(`저장 실패: ${data.error}`);
-      }
-    } catch (err) {
-      alert('문장 수집 저장 오류 발생');
-    }
-  };
-
-  // 12. 공감(좋아요) 토글
-  const handleToggleLike = async (bookId: string) => {
-    try {
-      const res = await fetch('/api/like', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookId, nickname }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setBooks((prev) =>
-          prev.map((b) =>
-            b.bookId === bookId
-              ? { ...b, likes: data.likes, likedUsers: data.likedUsers }
-              : b
-          )
-        );
-      }
-    } catch (err) {
-      console.error('좋아요 실패:', err);
-    }
-  };
-
-  // 현재 상세 모달에 표시할 최신 도서 정보 (목록 갱신 시 즉시 반영)
-  const activeDetailBook = useMemo(() => {
-    if (!selectedBook) return null;
-    return books.find((b) => b.bookId === selectedBook.bookId) || selectedBook;
-  }, [books, selectedBook]);
-
-  // 통합 독서 피드 최신순 정렬
-  const sortedTimelineItems = useMemo(() => {
-    return [...timelineItems].sort((a, b) => {
-      const dateCmp = (b.date || '').localeCompare(a.date || '');
-      if (dateCmp !== 0) return dateCmp;
-      return (b.createdAt || '').localeCompare(a.createdAt || '');
-    });
-  }, [timelineItems]);
-
   // 13. 도서 상세 및 타임라인 열기
   const openDetail = async (book: Book) => {
     const today = new Date().toISOString().split('T')[0];
@@ -647,7 +481,7 @@ export default function Home() {
     setInlineInsightQuote('');
     setInlineInsightImageUrl('');
     setShowDetailModal(true);
-    fetchTimeline(book.bookId);
+    fetchTimeline(book.bookId || book.notionPageId);
   };
 
   const fetchTimeline = async (bookId: string) => {
@@ -674,7 +508,11 @@ export default function Home() {
       const data = await res.json();
       if (data.ok) {
         const targetId = activeDetailBook?.bookId || selectedBook?.bookId;
-        await Promise.all([targetId ? fetchTimeline(targetId) : Promise.resolve(), fetchBooks()]);
+        await Promise.all([
+          targetId ? fetchTimeline(targetId) : Promise.resolve(),
+          fetchBooks(),
+          fetchGlobalTimeline(),
+        ]);
       } else {
         alert(data.error || '삭제 실패');
       }
@@ -690,7 +528,11 @@ export default function Home() {
       const data = await res.json();
       if (data.ok) {
         const targetId = activeDetailBook?.bookId || selectedBook?.bookId;
-        await Promise.all([targetId ? fetchTimeline(targetId) : Promise.resolve(), fetchBooks()]);
+        await Promise.all([
+          targetId ? fetchTimeline(targetId) : Promise.resolve(),
+          fetchBooks(),
+          fetchGlobalTimeline(),
+        ]);
       } else {
         alert(data.error || '삭제 실패');
       }
@@ -699,7 +541,7 @@ export default function Home() {
     }
   };
 
-  // 상세 모달 내 인라인 독서일지 작성 제출
+  // 상세 모달 인라인 독서일지 제출
   const handleSubmitInlineLog = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetBook = activeDetailBook || selectedBook;
@@ -718,31 +560,37 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bookNotionPageId: targetBook.bookId,
+          bookNotionPageId: targetBook.bookId || targetBook.notionPageId,
           readDate: inlineLogDate || new Date().toISOString().split('T')[0],
-          readPages: Number(inlineLogPage),
-          note: inlineLogContent,
+          readPages: Number(inlineLogPage) || 0,
+          note: inlineLogContent.trim(),
           imageUrl: inlineLogImageUrl,
           nickname: nickname.trim(),
           userId: user?.id,
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || '일지 작성 실패');
-
-      setInlineLogContent('');
-      setInlineLogPage('');
-      setInlineLogImageUrl('');
-      setActiveDetailForm('none');
-      await Promise.all([fetchTimeline(targetBook.bookId), fetchBooks()]);
-    } catch (err: any) {
-      alert(err.message || '일지 작성 중 오류가 발생했습니다.');
+      if (data.ok) {
+        alert('진도와 독서일지가 노션에 실시간 동기화되었습니다! 📚');
+        setInlineLogContent('');
+        setInlineLogImageUrl('');
+        setActiveDetailForm('none');
+        await Promise.all([
+          fetchTimeline(targetBook.bookId || targetBook.notionPageId),
+          fetchBooks(),
+          fetchGlobalTimeline(),
+        ]);
+      } else {
+        alert(`저장 실패: ${data.error}`);
+      }
+    } catch (err) {
+      alert('독서일지 저장 통신 오류');
     } finally {
       setSubmittingInlineLog(false);
     }
   };
 
-  // 상세 모달 내 인라인 문장수집 작성 제출
+  // 상세 모달 인라인 문장수집 제출
   const handleSubmitInlineInsight = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetBook = activeDetailBook || selectedBook;
@@ -751,7 +599,7 @@ export default function Home() {
       return alert('본인이 등록한 도서에만 문장을 수집할 수 있습니다.');
     }
     if (!inlineInsightQuote.trim()) {
-      alert('수집할 문장 내용을 입력해 주세요.');
+      alert('발췌 문장 또는 감상 내용을 입력해 주세요.');
       return;
     }
 
@@ -761,49 +609,39 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bookNotionPageId: targetBook.bookId,
-          page: inlineInsightPage,
-          notes: inlineInsightQuote,
-          readDate: inlineInsightDate || new Date().toISOString().split('T')[0],
+          bookNotionPageId: targetBook.bookId || targetBook.notionPageId,
+          page: String(inlineInsightPage || ''),
+          notes: inlineInsightQuote.trim(),
           imageUrl: inlineInsightImageUrl,
           nickname: nickname.trim(),
           userId: user?.id,
+          readDate: inlineInsightDate || new Date().toISOString().split('T')[0],
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || '문장수집 실패');
-
-      setInlineInsightQuote('');
-      setInlineInsightPage('');
-      setInlineInsightImageUrl('');
-      setActiveDetailForm('none');
-      await Promise.all([fetchTimeline(targetBook.bookId), fetchBooks()]);
-    } catch (err: any) {
-      alert(err.message || '문장수집 중 오류가 발생했습니다.');
+      if (data.ok) {
+        alert('감명 깊은 문장이 노션에 수집되었습니다! 💡');
+        setInlineInsightQuote('');
+        setInlineInsightImageUrl('');
+        setActiveDetailForm('none');
+        await Promise.all([
+          fetchTimeline(targetBook.bookId || targetBook.notionPageId),
+          fetchBooks(),
+          fetchGlobalTimeline(),
+        ]);
+      } else {
+        alert(`수집 실패: ${data.error}`);
+      }
+    } catch (err) {
+      alert('문장 수집 저장 통신 오류');
     } finally {
       setSubmittingInlineInsight(false);
     }
   };
 
-  // 상세 모달 인라인 OCR 핸들러
-  const handleInlinePhotoOcr = async (file: File, target: 'log' | 'insight') => {
-    if (target === 'log') {
-      await runOcrFromFile(file, setInlineLogOcrLoading, setInlineLogImageUrl, (ocrText) => {
-        setInlineLogContent((prev) => (prev ? `${prev}\n\n${ocrText}` : ocrText));
-      });
-    } else {
-      await runOcrFromFile(file, setInlineInsightOcrLoading, setInlineInsightImageUrl, (ocrText) => {
-        setInlineInsightQuote((prev) => (prev ? `${prev}\n\n${ocrText}` : ocrText));
-      });
-    }
-  };
-
-  // 14. AI 독서 감상문 생성 (Gemini / EXAONE 선택 반영)
-  const handleGenerateAi = async () => {
+  // AI 1인칭 독서 감상문 초안 생성
+  const handleGenerateAiReport = async () => {
     if (!selectedBook) return;
-    if (!checkIsOwner(selectedBook)) {
-      return alert('도서 등록자만 AI 감상문을 생성할 수 있습니다.');
-    }
     setAiLoading(true);
     try {
       const res = await fetch('/api/ai-report', {
@@ -812,43 +650,45 @@ export default function Home() {
         body: JSON.stringify({
           bookTitle: selectedBook.title,
           author: selectedBook.author,
-          notionPageId: selectedBook.bookId,
+          notionPageId: selectedBook.bookId || selectedBook.notionPageId,
           aiProvider,
         }),
       });
       const data = await res.json();
-      if (data.ok) {
+      if (data.ok && data.aiReport) {
         setAiReport(data.aiReport);
-        alert(`✨ ${data.providerName || 'AI'} 감상문이 생성되고 노션 본문에 자동 저장되었습니다!`);
+        setMyReport((prev) => (prev ? prev : data.aiReport));
+        alert(`✨ ${data.providerName || 'AI'} 감상문 초안이 생성되었습니다!`);
+        fetchTimeline(selectedBook.bookId || selectedBook.notionPageId);
       } else {
-        alert(`AI 생성 실패: ${data.error}`);
+        alert(data.error || 'AI 감상문 생성 실패');
       }
     } catch (err) {
-      alert('AI 감상문 생성 오류 발생');
+      alert('AI 서버 통신 오류');
     } finally {
       setAiLoading(false);
     }
   };
 
+  // 나의 감상문 노션 본문 영구 저장
   const handleSaveMyReport = async () => {
-    if (!selectedBook || !myReport.trim()) return alert('감상문 내용을 작성해 주세요.');
-    if (!checkIsOwner(selectedBook)) {
-      return alert('도서 등록자만 감상문을 저장할 수 있습니다.');
-    }
+    if (!selectedBook) return;
+    if (!myReport.trim()) return alert('감상문 내용을 작성해 주세요.');
+
     setMyReportSaving(true);
     try {
       const res = await fetch('/api/my-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bookId: selectedBook.bookId,
+          bookId: selectedBook.bookId || selectedBook.notionPageId,
           text: myReport,
           nickname: nickname.trim(),
         }),
       });
       const data = await res.json();
       if (data.ok) {
-        alert('✍️ 작성하신 독서 감상문이 노션 본문에 콜아웃 블록으로 영구 저장되었습니다!');
+        alert('✍️ 작성하신 독서 감상문이 노션 본문에 안전하게 영구 저장되었습니다!');
       } else {
         alert(`저장 실패: ${data.error}`);
       }
@@ -859,62 +699,18 @@ export default function Home() {
     }
   };
 
-  // 15. 기존 데이터 ➔ 사용자 DB 원클릭 마이그레이션 실행
-  const handleMigrateOldData = async () => {
-    if (!confirm('기존 노션 도서/일지/문장 기록의 닉네임을 읽어 사용자 DB에 연결할까요?')) return;
-    try {
-      const res = await fetch('/api/users/migrate', { method: 'POST' });
-      const data = await res.json();
-      if (data.ok) {
-        alert(`마이그레이션 완료!\n생성된 사용자: ${data.report.usersCreated}명\n연결된 도서: ${data.report.booksLinked}권\n연결된 일지: ${data.report.logsLinked}건\n연결된 문장: ${data.report.insightsLinked}건`);
-        fetchBooks();
-      } else {
-        alert(`마이그레이션 실패: ${data.error}`);
-      }
-    } catch (err) {
-      alert('마이그레이션 통신 오류');
-    }
-  };
+  const activeDetailBook = useMemo(() => {
+    if (!selectedBook) return null;
+    return books.find((b) => (b.bookId || b.notionPageId) === (selectedBook.bookId || selectedBook.notionPageId)) || selectedBook;
+  }, [books, selectedBook]);
 
-  // 16. 도서 필터 및 정렬 계산
-  const filteredBooks = books
-    .filter((b) => {
-      if (activeTab === 'my') {
-        const isMyBook = (b.nickname && b.nickname.trim() === nickname.trim()) || (user?.id && b.userId === user.id);
-        if (!isMyBook) return false;
-      }
-      if (statusFilter === 'reading') return (b.progressPercent || 0) < 100;
-      if (statusFilter === 'done') return (b.progressPercent || 0) >= 100;
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'progress') return (b.progressPercent || 0) - (a.progressPercent || 0);
-      if (sortBy === 'likes') return (b.likes || 0) - (a.likes || 0);
-      if (sortBy === 'title') return a.title.localeCompare(b.title);
-      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  const sortedTimelineItems = useMemo(() => {
+    return [...timelineItems].sort((a, b) => {
+      const dateCmp = (b.date || '').localeCompare(a.date || '');
+      if (dateCmp !== 0) return dateCmp;
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
     });
-
-  // 17. 랭킹보드 집계
-  const rankingList = useMemo(() => {
-    const userStats: { [nick: string]: { nickname: string; doneCount: number; totalPagesRead: number; bookCount: number } } = {};
-
-    books.forEach((b) => {
-      const nick = b.nickname || '익명';
-      if (!userStats[nick]) {
-        userStats[nick] = { nickname: nick, doneCount: 0, totalPagesRead: 0, bookCount: 0 };
-      }
-      userStats[nick].bookCount++;
-      userStats[nick].totalPagesRead += b.readPages || 0;
-      if ((b.progressPercent || 0) >= 100 || b.checkbox) {
-        userStats[nick].doneCount++;
-      }
-    });
-
-    return Object.values(userStats).sort((a, b) => {
-      if (b.doneCount !== a.doneCount) return b.doneCount - a.doneCount;
-      return b.totalPagesRead - a.totalPagesRead;
-    });
-  }, [books]);
+  }, [timelineItems]);
 
   const activeAiName = aiProvider === 'exaone' ? 'LG EXAONE' : 'Google Gemini';
 
@@ -940,12 +736,9 @@ export default function Home() {
             <div>
               <div
                 className="app-title-row"
-                onClick={() => {
-                  setActiveTab('all');
-                  setStatusFilter('all');
-                }}
+                onClick={() => setActiveTab('home')}
                 style={{ cursor: 'pointer' }}
-                title="서재 홈으로 이동"
+                title="대시보드 홈으로 이동"
               >
                 <img src="/icon.svg" className="app-logo-icon" alt="북튜닝 로고" />
                 <h1>북튜닝 (Book Tuning)</h1>
@@ -956,20 +749,24 @@ export default function Home() {
                   : '책을 읽고 기록하며 내 삶과 생각의 주파수를 맞춰가는 공간입니다.'}
               </p>
             </div>
-            <div className="header-nav-row">
+
+            <div className="header-nav-row" data-tour="header-utils">
               <button
+                type="button"
                 className="ghost-button"
                 style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
                 onClick={() => setShowTutorialModal(true)}
               >
                 📖 사용법
               </button>
+
               {nickname || user ? (
                 <>
-                  <button className="ghost-button" onClick={() => setShowLoginModal(true)}>
+                  <button type="button" className="ghost-button" onClick={() => setShowLoginModal(true)}>
                     👤 {nickname || '내 프로필'}
                   </button>
                   <button
+                    type="button"
                     className="ghost-button"
                     style={{ color: 'var(--danger)', borderColor: '#f2c9c5' }}
                     onClick={() => handleLogout()}
@@ -979,6 +776,7 @@ export default function Home() {
                 </>
               ) : (
                 <button
+                  type="button"
                   className="ghost-button"
                   style={{ borderColor: 'var(--accent)', color: 'var(--accent-dark)' }}
                   onClick={() => handleLogout(true)}
@@ -986,338 +784,217 @@ export default function Home() {
                   ✨ 로그인 / 입장화면
                 </button>
               )}
-              <button className="ghost-button" onClick={() => setShowDevLogModal(true)}>
+
+              <button type="button" className="ghost-button" onClick={() => setShowDevLogModal(true)}>
                 📝 개발로그
               </button>
-              <button className="ghost-button" onClick={() => setShowSettingsModal(true)}>
+              <button type="button" className="ghost-button" onClick={() => setShowSettingsModal(true)}>
                 ⚙️ 설정
               </button>
             </div>
           </header>
 
-      {/* 2. 도서 검색 패널 */}
-      <section className="panel">
-        <div className="section-title-row">
-          <div>
-            <h2>도서 검색 및 추가</h2>
-            <p className="subtitle">
-              현재 검색 엔진: <b>{searchApiType === 'kakao' ? '카카오 + 국립중앙도서관' : searchApiType === 'aladin' ? '알라딘' : '네이버'}</b> (설정에서 변경 가능)
-            </p>
-          </div>
-          <button
-            className="ghost-button"
-            style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}
-            onClick={handleOpenManualBook}
-          >
-            ✍️ 직접 등록
-          </button>
-        </div>
+          {/* 2. PC 상단 4대 메뉴 탭 네비게이션 */}
+          <nav className="desktop-top-nav" data-tour="main-nav" aria-label="메인 탭 네비게이션">
+            <button
+              type="button"
+              className={`desktop-nav-btn ${activeTab === 'home' ? 'active' : ''}`}
+              onClick={() => setActiveTab('home')}
+            >
+              <span>🏠 홈 (대시보드)</span>
+            </button>
+            <button
+              type="button"
+              className={`desktop-nav-btn ${activeTab === 'library' ? 'active' : ''}`}
+              onClick={() => setActiveTab('library')}
+            >
+              <span>📚 서재 (Dock 캐러셀)</span>
+              <span className="text-[11px] bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded-full ml-1">
+                {myBooks.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              className={`desktop-nav-btn ${activeTab === 'feed' ? 'active' : ''}`}
+              onClick={() => setActiveTab('feed')}
+            >
+              <span>💬 피드 (타임라인)</span>
+            </button>
+            <button
+              type="button"
+              className={`desktop-nav-btn ${activeTab === 'dex' ? 'active' : ''}`}
+              onClick={() => setActiveTab('dex')}
+            >
+              <span>🐾 도감 (완독 표지)</span>
+            </button>
+          </nav>
 
-        <div className="search-row">
-          <input
-            type="text"
-            placeholder="예: 나는 감이 아니라 또는 979..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          />
-          <button onClick={handleSearch} disabled={searching}>
-            {searching ? '검색 중...' : '검색'}
-          </button>
-        </div>
-
-        {searchResults.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-            {searchResults.map((book, index) => (
-              <div key={index} className="flex gap-3 bg-white p-3 border border-amber-200 rounded-xl items-center shadow-sm">
-                {book.coverUrl ? (
-                  <img src={book.coverUrl} alt="" className="w-12 h-16 object-cover rounded shadow-sm" />
-                ) : (
-                  <div className="w-12 h-16 bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-800 rounded">
-                    No Cover
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm truncate">{book.title}</p>
-                  <p className="text-xs text-stone-500 truncate">{book.author} | {book.publisher}</p>
-                  <p className="text-xs text-amber-800 font-semibold mt-1">
-                    {book.totalPages > 0 ? `📖 총 ${book.totalPages}쪽` : '📄 쪽수 미정 (확인 후 입력)'}
-                  </p>
-                </div>
-                <button className="text-xs py-2 px-3" onClick={() => handleSelectSearchResult(book)}>
-                  선택
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* 3. 통합 독서 갤러리 */}
-      <section>
-        <div className="section-title-row">
-          <div>
-            <h2>통합 독서 갤러리</h2>
-            <p className="subtitle">💡 <b>책 표지 이미지를 클릭</b>하면 상세 타임라인과 <b>{activeAiName} AI 감상문</b>을 볼 수 있습니다.</p>
-          </div>
-        </div>
-
-        <div className="library-tabs">
-          <button className={`lib-tab-btn ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>
-            커뮤니티 전체 ({books.length})
-          </button>
-          <button className={`lib-tab-btn ${activeTab === 'my' ? 'active' : ''}`} onClick={() => setActiveTab('my')}>
-            내 서재 ({books.filter((b) => b.nickname === nickname || b.userId === user?.id).length})
-          </button>
-          <button className={`lib-tab-btn ${activeTab === 'rank' ? 'active' : ''}`} onClick={() => setActiveTab('rank')}>
-            🏆 랭킹보드
-          </button>
-        </div>
-
-        {activeTab !== 'rank' && (
-          <div className="filter-bar">
-            <div className="filter-group">
-              <button className={`filter-btn ${statusFilter === 'all' ? 'active' : ''}`} onClick={() => setStatusFilter('all')}>
-                전체
-              </button>
-              <button className={`filter-btn ${statusFilter === 'reading' ? 'active' : ''}`} onClick={() => setStatusFilter('reading')}>
-                읽는 중
-              </button>
-              <button className={`filter-btn ${statusFilter === 'done' ? 'active' : ''}`} onClick={() => setStatusFilter('done')}>
-                완독
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-stone-500">정렬:</span>
-              <select
-                className="text-xs py-1 px-2 border rounded-lg bg-white"
-                style={{ width: 'auto' }}
-                value={sortBy}
-                onChange={(e: any) => setSortBy(e.target.value)}
-              >
-                <option value="latest">최신 등록순</option>
-                <option value="progress">높은 진도율순</option>
-                <option value="likes">공감 많은순</option>
-                <option value="title">도서명 가나다순</option>
-              </select>
-            </div>
-          </div>
-        )}
-
-        {/* 랭킹보드 탭 뷰 */}
-        {activeTab === 'rank' ? (
-          <div className="ranking-grid">
-            {rankingList.map((st, idx) => (
-              <div key={st.nickname} className="rank-card">
-                <div className="rank-badge">{idx + 1}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-base text-stone-800 truncate">{st.nickname}</p>
-                  <p className="text-xs text-stone-500 mt-1">
-                    완독 <b>{st.doneCount}권</b> · 누적 <b>{st.totalPagesRead.toLocaleString()}쪽</b> 독서
-                  </p>
-                  <p className="text-xs text-amber-800 mt-0.5">총 {st.bookCount}권 서재 등록</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : loading ? (
-          <div className="panel text-center py-12 text-stone-500">
-            노션 데이터베이스에서 서재를 실시간 동기화하는 중입니다... 📚
-          </div>
-        ) : filteredBooks.length === 0 ? (
-          <div className="panel text-center py-12 text-stone-500">
-            {activeTab === 'my' ? (
-              <div>
-                <p className="font-bold mb-2">아직 '{nickname}' 닉네임으로 등록된 책이 없습니다.</p>
-                <p className="text-xs text-stone-400 mb-4">상단 [커뮤니티 전체] 탭을 눌러 모임원들의 책을 둘러보거나, 새 책을 검색해 추가해 보세요!</p>
-                <button className="ghost-button" onClick={() => setActiveTab('all')}>커뮤니티 전체 서재 보기</button>
-              </div>
-            ) : (
-              '조건과 일치하는 도서가 없습니다.'
+          {/* 3. 4대 탭 본문 영역 */}
+          <main className="app-main-content">
+            {activeTab === 'home' && (
+              <HomeTab
+                books={books}
+                myBooks={myBooks}
+                logs={allLogs}
+                insights={allInsights}
+                loading={loading}
+                currentUserNickname={nickname}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                searching={searching}
+                searchResults={searchResults}
+                onClearSearchResults={() => setSearchResults([])}
+                searchApiType={searchApiType}
+                onSearch={handleSearch}
+                onSelectSearchResult={handleSelectSearchResult}
+                onOpenManualBook={handleOpenManualBook}
+                onSelectBook={openDetail}
+                onGoToFeed={() => setActiveTab('feed')}
+                onGoToLibrary={() => setActiveTab('library')}
+              />
             )}
-          </div>
-        ) : (
-          <div className="book-gallery">
-            {filteredBooks.map((book) => {
-              const hasLiked = book.likedUsers?.includes(nickname);
-              const isMyBook = checkIsOwner(book);
-              return (
-                <article key={book.bookId} className="book-card">
-                  <div className="cover-wrap" onClick={() => openDetail(book)}>
-                    <div className="cover-badge">기록보기</div>
-                    <div className="author-badge">{isMyBook ? '👑 내 책' : (book.nickname || '익명')}</div>
-                    {book.coverUrl ? (
-                      <img src={book.coverUrl} alt={book.title} />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-center p-3 text-xs font-bold text-amber-900 bg-amber-100">
-                        {book.title}
-                      </div>
-                    )}
-                  </div>
 
-                  <div className="book-card-body">
-                    <div className="book-title" onClick={() => openDetail(book)}>
-                      {book.title}
-                    </div>
-                    <div className="book-meta truncate">{book.author || '저자 미상'}</div>
+            {activeTab === 'library' && (
+              <LibraryTab
+                books={books}
+                myBooks={myBooks}
+                loading={loading}
+                currentUserNickname={nickname}
+                onSelectBook={openDetail}
+                onOpenManualBook={handleOpenManualBook}
+              />
+            )}
 
-                    <div className="progress-area">
-                      <div className="progress-text">
-                        <span>{book.readPages || 0} / {book.totalPages || 0}쪽</span>
-                        <span className="text-amber-800 font-bold">{book.progressPercent || 0}%</span>
-                      </div>
-                      <div className="progress-bar">
-                        <div className="progress-fill" style={{ width: `${book.progressPercent || 0}%` }}></div>
-                      </div>
-                    </div>
+            {activeTab === 'feed' && (
+              <FeedTab
+                books={books}
+                logs={allLogs}
+                insights={allInsights}
+                loading={loading}
+                onSelectBook={openDetail}
+              />
+            )}
 
-                    <div className="like-row">
-                      <button
-                        className={`like-btn ${hasLiked ? 'liked' : ''}`}
-                        onClick={() => handleToggleLike(book.bookId)}
-                      >
-                        {hasLiked ? '❤️' : '🤍'} {book.likes || 0}
-                      </button>
-                      {isMyBook ? (
-                        <button
-                          className="text-xs text-stone-400 hover:text-stone-700 bg-transparent border-0 p-1"
-                          onClick={() => {
-                            setSelectedBook(book);
-                            setManualTitle(book.title);
-                            setManualAuthor(book.author);
-                            setManualPublisher(book.publisher);
-                            setManualPages(book.totalPages);
-                            setManualDesc(book.description);
-                            setManualCover(book.coverUrl);
-                            setShowEditBookModal(true);
-                          }}
-                        >
-                          ⚙️ 관리
-                        </button>
-                      ) : (
-                        <span className="text-xs text-stone-400 font-medium">
-                          👤 {book.nickname}
-                        </span>
-                      )}
-                    </div>
+            {activeTab === 'dex' && (
+              <DexTab
+                myBooks={myBooks}
+                onSelectBook={openDetail}
+              />
+            )}
+          </main>
 
-                    <div className="card-actions">
-                      {isMyBook ? (
-                        <>
-                          <button
-                            onClick={() => {
-                              setSelectedBook(book);
-                              setEditingLogId(null);
-                              setReadPages(book.readPages || '');
-                              setNote('');
-                              setLogImageUrl('');
-                              setShowLogModal(true);
-                            }}
-                          >
-                            진도 기록
-                          </button>
-                          <button
-                            className="insight-btn"
-                            onClick={() => {
-                              setSelectedBook(book);
-                              setEditingPageLogId(null);
-                              setInsightPage('');
-                              setInsightNotes('');
-                              setInsightImageUrl('');
-                              setShowInsightModal(true);
-                            }}
-                          >
-                            문장 수집
-                          </button>
-                          <button className="ghost-button" style={{ padding: '6px 0', fontSize: '11px' }} onClick={() => openDetail(book)}>
-                            상세보기
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          className="ghost-button w-full"
-                          style={{ padding: '7px 0', fontSize: '12px', borderColor: 'var(--accent)', color: 'var(--accent-dark)' }}
-                          onClick={() => openDetail(book)}
-                        >
-                          📖 서재 둘러보기 (상세)
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
+          {/* 4. 모바일 하단 네비게이션 바 */}
+          <BottomNav
+            activeTab={activeTab}
+            onChange={setActiveTab}
+            counts={{
+              reading: myBooks.filter((b) => (b.progressPercent || 0) < 100).length,
+              books: myBooks.length,
+              feed: allLogs.length + allInsights.length,
+              dex: myBooks.filter((b) => (b.progressPercent || 0) >= 100).length,
+            }}
+          />
 
-      {/* 4. 노션 데이터베이스 열기 알약 버튼 (환경변수 설정 시에만 안전하게 표시) */}
-      {process.env.NEXT_PUBLIC_NOTION_DATABASE_URL && (
-        <div className="notion-outlink-container">
-          <a
-            href={process.env.NEXT_PUBLIC_NOTION_DATABASE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="notion-outlink-btn"
-          >
-            <span>📋</span> 노션 데이터베이스 열기 ↗
-          </a>
+          {/* 5. 노션 바로가기 버튼 & 푸터 */}
+          {process.env.NEXT_PUBLIC_NOTION_DATABASE_URL && (
+            <div className="notion-outlink-container">
+              <a
+                href={process.env.NEXT_PUBLIC_NOTION_DATABASE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="notion-outlink-btn"
+              >
+                📑 노션 데이터베이스 열기 ↗
+              </a>
+            </div>
+          )}
+
+          <footer className="footer text-center mt-12 mb-6">
+            <p className="text-xs text-stone-500 mb-2">
+              만든이. 기록조율사 서울외고 조용희{' '}
+              <a
+                href="https://www.instagram.com/record_tuner/"
+                target="_blank"
+                rel="noreferrer"
+                className="text-amber-800 underline"
+              >
+                @record_tuner
+              </a>
+            </p>
+            <div className="flex justify-center gap-4 text-xs text-stone-400">
+              <button
+                type="button"
+                className="bg-transparent border-0 p-0 text-stone-500 hover:underline"
+                onClick={() => setShowPrivacyModal(true)}
+              >
+                개인정보처리방침
+              </button>
+              <span>|</span>
+              <button
+                type="button"
+                className="bg-transparent border-0 p-0 text-stone-500 hover:underline"
+                onClick={() => setShowCopyrightModal(true)}
+              >
+                저작권 및 레퍼런스 안내
+              </button>
+            </div>
+          </footer>
         </div>
       )}
 
-      {/* 5. 푸터 */}
-      <footer className="app-footer">
-        <p>만든이. <strong>기록조율사 서울외고 조용희</strong> <a href="https://www.instagram.com/record_tuner/" target="_blank">@record_tuner</a></p>
-        <p style={{ marginTop: '10px' }}>
-          <a href="#" onClick={(e) => { e.preventDefault(); setShowPrivacyModal(true); }} style={{ fontSize: '13px', marginRight: '14px' }}>개인정보처리방침</a>
-          <a href="#" onClick={(e) => { e.preventDefault(); setShowCopyrightModal(true); }} style={{ fontSize: '13px', marginRight: '14px' }}>저작권 및 이용 안내</a>
-          <a href="#" onClick={(e) => { e.preventDefault(); alert('문의 사항은 @record_tuner 인스타그램 DM 또는 노션 페이지를 통해 접수해 주세요.'); }} style={{ fontSize: '13px' }}>지원/문의</a>
-        </p>
-      </footer>
-        </div>
-      )}
-
-      {/* ===================== 모달 (Modals) ===================== */}
-
-      {/* 1. 로그인 / 닉네임 설정 모달 */}
+      {/* 6. 모달 컴포넌트군 */}
+      {/* 6-1. 로그인 / 프로필 설정 모달 */}
       {showLoginModal && (
         <div className="modal">
-          <div className="modal-backdrop" onClick={() => setShowLoginModal(false)}></div>
-          <div className="modal-card">
+          <div className="modal-backdrop" onClick={() => setShowLoginModal(false)} />
+          <div className="modal-card" style={{ maxWidth: '420px' }}>
             <div className="section-title-row">
               <div>
-                <h2>👤 독서 닉네임 로그인 / 등록</h2>
-                <p className="subtitle">활동할 닉네임과 본인 확인용 4자리 비밀번호(PIN)를 입력하세요.</p>
+                <h2>👤 사용자 프로필 / 로그인</h2>
+                <p className="subtitle">닉네임과 4자리 PIN으로 입장합니다.</p>
               </div>
-              <button className="ghost-button" onClick={() => setShowLoginModal(false)}>닫기</button>
+              <button type="button" className="ghost-button" onClick={() => setShowLoginModal(false)}>
+                닫기
+              </button>
             </div>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <label>활동할 닉네임
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                await authenticateUser(nickname, pin);
+              }}
+              className="space-y-4"
+            >
+              <label className="block text-xs font-bold text-stone-700">
+                활동 닉네임
                 <input
                   type="text"
-                  placeholder="활동할 닉네임을 입력하세요 (예: 책벌레)"
+                  placeholder="예: 조용희"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
+                  className="mt-1 w-full"
                   required
                 />
               </label>
-              <label>4자리 비밀번호 (PIN)
+              <label className="block text-xs font-bold text-stone-700">
+                4자리 PIN
                 <input
                   type="password"
                   maxLength={4}
                   inputMode="numeric"
-                  placeholder="숫자 4자리 비밀번호 입력"
+                  placeholder="숫자 4자리 비밀번호"
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
+                  className="mt-1 w-full"
                   required
                 />
               </label>
-              <p className="text-xs text-stone-500">
-                ※ 동명이인 구분 및 본인 인증을 위해 사용됩니다. 기존 사용자는 노션에 등록된 4자리 PIN을 입력하세요.
+              <p className="text-xs text-stone-500 leading-relaxed">
+                ※ 동명이인 구분 및 본인 인증을 위해 사용됩니다.
               </p>
               <div className="mt-4 flex flex-col gap-2">
-                <button type="submit" className="w-full py-3 font-bold">서재 입장하기</button>
+                <button type="submit" className="w-full py-3 font-bold">
+                  서재 입장하기
+                </button>
                 {(nickname || user) && (
                   <button
                     type="button"
@@ -1334,17 +1011,19 @@ export default function Home() {
         </div>
       )}
 
-      {/* 2. 도서 확인 및 등록 모달 (검색 결과 선택 및 수동 등록 공용) */}
+      {/* 6-2. 수동 / 검색 결과 도서 등록 모달 */}
       {showManualBookModal && (
         <div className="modal">
-          <div className="modal-backdrop" onClick={() => setShowManualBookModal(false)}></div>
+          <div className="modal-backdrop" onClick={() => setShowManualBookModal(false)} />
           <div className="modal-card" style={{ maxWidth: '600px' }}>
             <div className="section-title-row">
               <div>
                 <h2>도서 정보 확인 및 등록</h2>
                 <p className="subtitle">검색 결과를 확인하거나 정보를 직접 입력한 뒤 저장합니다.</p>
               </div>
-              <button className="ghost-button" onClick={() => setShowManualBookModal(false)}>닫기</button>
+              <button type="button" className="ghost-button" onClick={() => setShowManualBookModal(false)}>
+                닫기
+              </button>
             </div>
             <form onSubmit={handleSubmitManualBook} className="space-y-3">
               {manualCover && (
@@ -1357,98 +1036,89 @@ export default function Home() {
                 </div>
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label>도서 커버이미지 URL
+                <label className="block text-xs font-bold text-stone-700">
+                  도서 커버이미지 URL
                   <input
                     type="url"
+                    placeholder="https://..."
                     value={manualCover}
                     onChange={(e) => setManualCover(e.target.value)}
-                    placeholder="https://..."
+                    className="mt-1 w-full"
                   />
                 </label>
-                <label>ISBN
+                <label className="block text-xs font-bold text-stone-700">
+                  도서명 (필수)
                   <input
                     type="text"
-                    value={manualIsbn}
-                    onChange={(e) => setManualIsbn(e.target.value)}
-                    placeholder="예: 97911..."
+                    value={manualTitle}
+                    onChange={(e) => setManualTitle(e.target.value)}
+                    className="mt-1 w-full"
+                    required
                   />
                 </label>
               </div>
-
-              <label>도서명 (필수)
-                <input
-                  type="text"
-                  value={manualTitle}
-                  onChange={(e) => setManualTitle(e.target.value)}
-                  placeholder="도서명을 입력하세요"
-                  required
-                />
-              </label>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label>저자
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <label className="block text-xs font-bold text-stone-700">
+                  저자
                   <input
                     type="text"
                     value={manualAuthor}
                     onChange={(e) => setManualAuthor(e.target.value)}
-                    placeholder="저자명"
+                    className="mt-1 w-full"
                   />
                 </label>
-                <label>출판사
+                <label className="block text-xs font-bold text-stone-700">
+                  출판사
                   <input
                     type="text"
                     value={manualPublisher}
                     onChange={(e) => setManualPublisher(e.target.value)}
-                    placeholder="출판사명"
+                    className="mt-1 w-full"
                   />
                 </label>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label>전체 페이지수 (쪽)
+                <label className="block text-xs font-bold text-stone-700">
+                  총 쪽수
                   <input
                     type="number"
                     min="0"
+                    placeholder="예: 320"
                     value={manualPages}
-                    onChange={(e) => setManualPages(e.target.value ? Number(e.target.value) : '')}
-                    placeholder="예: 272"
-                    required
-                  />
-                </label>
-                <label>검색 출처
-                  <input
-                    type="text"
-                    value={manualSource}
-                    onChange={(e) => setManualSource(e.target.value)}
-                    placeholder="예: Aladin API"
+                    onChange={(e) => setManualPages(e.target.value)}
+                    className="mt-1 w-full"
                   />
                 </label>
               </div>
-
-              <label>책 소개 / 메모
+              <label className="block text-xs font-bold text-stone-700">
+                책 소개 및 메모
                 <textarea
                   rows={3}
                   value={manualDesc}
                   onChange={(e) => setManualDesc(e.target.value)}
                   placeholder="도서 소개나 간단한 메모를 입력하세요"
-                ></textarea>
+                  className="mt-1 w-full"
+                />
               </label>
 
               <div className="text-right mt-4 pt-3 border-t">
-                <button type="submit" className="w-full py-3 font-bold">도서 서재에 등록</button>
+                <button type="submit" className="w-full py-3 font-bold">
+                  도서 서재에 등록
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* 3. 도서 상세 기록 (개인버전 UX: 통합 타임라인 + 인라인 작성, AI 초안, 나의 감상문) */}
+      {/* 6-3. 도서 상세 기록 모달 (통합 타임라인 + 인라인 작성 + AI 감상문) */}
       {showDetailModal && activeDetailBook && (
         <div className="modal">
-          <div className="modal-backdrop" onClick={() => setShowDetailModal(false)}></div>
+          <div className="modal-backdrop" onClick={() => setShowDetailModal(false)} />
           <div className="modal-card detail-modal-card">
-            {/* 상단 헤더 */}
-            <div className="section-title-row flex-wrap gap-3" style={{ paddingBottom: '14px', marginBottom: 0, borderBottom: '1px solid var(--line)' }}>
+            {/* 상단 도서 정보 헤더 */}
+            <div
+              className="section-title-row flex-wrap gap-3"
+              style={{ paddingBottom: '14px', marginBottom: 0, borderBottom: '1px solid var(--line)' }}
+            >
               <div className="flex gap-4 items-center min-w-0">
                 {activeDetailBook.coverUrl ? (
                   <img
@@ -1475,7 +1145,7 @@ export default function Home() {
                       </span>
                     ) : (
                       <span className="text-xs bg-stone-100 text-stone-600 font-medium px-2 py-0.5 rounded-full">
-                        🔒 {activeDetailBook.nickname}님의 서재 (읽기 전용)
+                        🔒 {activeDetailBook.nickname}님의 서재
                       </span>
                     )}
                   </div>
@@ -1487,6 +1157,7 @@ export default function Home() {
                   </p>
                 </div>
               </div>
+
               <div className="flex items-center gap-2 flex-shrink-0">
                 {checkIsOwner(activeDetailBook) && (
                   <button
@@ -1523,14 +1194,14 @@ export default function Home() {
                 className={`lib-tab-btn ${detailTab === 'timeline' ? 'active' : ''}`}
                 onClick={() => setDetailTab('timeline')}
               >
-                통합 타임라인 ({sortedTimelineItems.length})
+                📅 타임라인 피드 ({timelineItems.length})
               </button>
               <button
                 type="button"
                 className={`lib-tab-btn ${detailTab === 'ai' ? 'active' : ''}`}
                 onClick={() => setDetailTab('ai')}
               >
-                ✨ AI 초안
+                ✨ {activeAiName} 초안
               </button>
               <button
                 type="button"
@@ -1541,950 +1212,375 @@ export default function Home() {
               </button>
             </div>
 
-            {/* 스크롤 본문 영역 */}
-            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
-              {/* 1. 통합 타임라인 탭 */}
-              {detailTab === 'timeline' && (
-                <div className="space-y-4">
-                  {/* 상단 간편 등록 2버튼 체제 또는 읽기 전용 안내 */}
-                  {checkIsOwner(activeDetailBook) ? (
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setActiveDetailForm((prev) => (prev === 'log' ? 'none' : 'log'))}
-                        className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm ${
-                          activeDetailForm === 'log'
-                            ? 'bg-amber-700 hover:bg-amber-800 text-white shadow-inner'
-                            : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300/80'
-                        }`}
-                      >
-                        <span>📖</span>
-                        <span>{activeDetailForm === 'log' ? '독서일지 폼 닫기' : '+ 독서일지 작성'}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveDetailForm((prev) => (prev === 'insight' ? 'none' : 'insight'))}
-                        className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm ${
-                          activeDetailForm === 'insight'
-                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-inner'
-                            : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300/80'
-                        }`}
-                      >
-                        <span>💡</span>
-                        <span>{activeDetailForm === 'insight' ? '문장수집 폼 닫기' : '+ 문장수집 작성'}</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center gap-2">
-                      <span>🔒</span>
-                      <span>이 도서는 <strong>{activeDetailBook.nickname}</strong>님의 도서입니다. 타인의 도서에는 진도나 문장을 추가할 수 없으며, 열람 및 공감(❤️)만 가능합니다.</span>
-                    </div>
-                  )}
-
-                  {/* A. 독서일지 작성 인라인 폼 */}
-                  {activeDetailForm === 'log' && checkIsOwner(activeDetailBook) && (
-                    <form onSubmit={handleSubmitInlineLog} className="bg-amber-50/70 p-4 rounded-2xl border border-amber-200 space-y-3 detail-inline-form-log">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-amber-950 flex items-center gap-1 detail-feed-heading">
-                          <span>📖</span> 새 독서일지 작성
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <label className="text-xs font-semibold text-amber-700 hover:text-amber-800 cursor-pointer flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-amber-200">
-                            <span>📷 사진 본문 인식(OCR)</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                if (e.target.files?.[0]) handleInlinePhotoOcr(e.target.files[0], 'log');
-                              }}
-                              disabled={inlineLogOcrLoading}
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => setActiveDetailForm('none')}
-                            className="bg-transparent hover:bg-stone-100 text-xs text-stone-400 hover:text-stone-700 px-1.5 py-0.5 rounded-lg"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
-
-                      {inlineLogOcrLoading && (
-                        <p className="text-xs text-amber-700 animate-pulse font-medium">
-                          🤖 AI가 사진 속 문장을 읽어내는 중입니다...
-                        </p>
-                      )}
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-bold text-stone-700 mb-1">읽은 날짜</label>
-                          <input
-                            type="date"
-                            value={inlineLogDate}
-                            onChange={(e) => setInlineLogDate(e.target.value)}
-                            className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white min-w-0 box-border text-stone-900"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-stone-700 mb-1">읽은 페이지 (누적 쪽수)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            placeholder={`최대 ${activeDetailBook.totalPages || ''}p`}
-                            value={inlineLogPage}
-                            onChange={(e) => setInlineLogPage(e.target.value ? Number(e.target.value) : '')}
-                            className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white min-w-0 box-border text-stone-900 font-semibold"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <textarea
-                          rows={3}
-                          placeholder="오늘 읽은 내용과 나의 생각을 자유롭게 남겨보세요..."
-                          value={inlineLogContent}
-                          onChange={(e) => setInlineLogContent(e.target.value)}
-                          className="w-full px-3 py-2.5 text-sm rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white box-border text-stone-900"
-                          required
-                        ></textarea>
-                      </div>
-
-                      {inlineLogImageUrl && (
-                        <div className="flex items-center gap-2 p-2 bg-white rounded-xl border border-amber-300">
-                          <img src={inlineLogImageUrl} alt="첨부 사진" className="w-12 h-12 object-cover rounded-lg border" />
-                          <span className="text-xs text-amber-900 font-medium flex-1">📷 사진 첨부됨 (노션 본문에도 영구 저장)</span>
-                          <button
-                            type="button"
-                            onClick={() => setInlineLogImageUrl('')}
-                            className="text-xs text-stone-700 hover:text-stone-900 px-2 py-1 bg-stone-100 hover:bg-stone-200 rounded border"
-                          >
-                            사진 취소
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="flex justify-end gap-2.5 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => setActiveDetailForm('none')}
-                          className="px-3.5 py-2 text-xs font-bold rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-800 transition"
-                        >
-                          취소
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={submittingInlineLog || inlineLogOcrLoading}
-                          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow transition disabled:opacity-50"
-                        >
-                          {submittingInlineLog ? '저장 중...' : '독서일지 저장'}
-                        </button>
-                      </div>
-                    </form>
-                  )}
-
-                  {/* B. 문장수집 작성 인라인 폼 */}
-                  {activeDetailForm === 'insight' && checkIsOwner(activeDetailBook) && (
-                    <form onSubmit={handleSubmitInlineInsight} className="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200 space-y-3 detail-inline-form-insight">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-emerald-950 flex items-center gap-1 detail-feed-heading">
-                          <span>💡</span> 새 문장 수집하기
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <label className="text-xs font-semibold text-emerald-800 hover:text-emerald-900 cursor-pointer flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-emerald-200">
-                            <span>📷 책 본문 촬영(OCR)</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                if (e.target.files?.[0]) handleInlinePhotoOcr(e.target.files[0], 'insight');
-                              }}
-                              disabled={inlineInsightOcrLoading}
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => setActiveDetailForm('none')}
-                            className="bg-transparent hover:bg-stone-100 text-xs text-stone-400 hover:text-stone-700 px-1.5 py-0.5 rounded-lg"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
-
-                      {inlineInsightOcrLoading && (
-                        <p className="text-xs text-emerald-700 animate-pulse font-medium">
-                          🤖 AI가 사진 속 문장을 읽어내는 중입니다...
-                        </p>
-                      )}
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-bold text-stone-700 mb-1">페이지 번호</label>
-                          <input
-                            type="text"
-                            placeholder="예: p.124"
-                            value={inlineInsightPage}
-                            onChange={(e) => setInlineInsightPage(e.target.value)}
-                            className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white min-w-0 box-border text-stone-900"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-stone-700 mb-1">수집 날짜</label>
-                          <input
-                            type="date"
-                            value={inlineInsightDate}
-                            onChange={(e) => setInlineInsightDate(e.target.value)}
-                            className="w-full px-3 py-2 text-sm rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white min-w-0 box-border text-stone-900"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <textarea
-                          rows={4}
-                          placeholder="기억하고 싶은 인상 깊은 문장과 나의 단상을 입력하세요..."
-                          value={inlineInsightQuote}
-                          onChange={(e) => setInlineInsightQuote(e.target.value)}
-                          className="w-full px-3 py-2.5 text-sm rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white box-border text-stone-900"
-                          required
-                        ></textarea>
-                      </div>
-
-                      {inlineInsightImageUrl && (
-                        <div className="flex items-center gap-2 p-2 bg-white rounded-xl border border-emerald-300">
-                          <img src={inlineInsightImageUrl} alt="첨부 사진" className="w-12 h-12 object-cover rounded-lg border" />
-                          <span className="text-xs text-emerald-950 font-medium flex-1">📷 사진 첨부됨 (노션 본문에도 영구 저장)</span>
-                          <button
-                            type="button"
-                            onClick={() => setInlineInsightImageUrl('')}
-                            className="text-xs text-stone-700 hover:text-stone-900 px-2 py-1 bg-stone-100 hover:bg-stone-200 rounded border"
-                          >
-                            사진 취소
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="flex justify-end gap-2.5 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => setActiveDetailForm('none')}
-                          className="px-3.5 py-2 text-xs font-bold rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-800 transition"
-                        >
-                          취소
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={submittingInlineInsight || inlineInsightOcrLoading}
-                          className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow transition disabled:opacity-50"
-                        >
-                          {submittingInlineInsight ? '저장 중...' : '문장 저장'}
-                        </button>
-                      </div>
-                    </form>
-                  )}
-
-                  {/* C. 통합 독서 피드 (최신순 정렬) */}
-                  <div className="space-y-3 pt-1">
-                    <div className="flex items-center justify-between text-xs text-stone-500 px-1 detail-header-meta">
-                      <span className="font-bold text-stone-700 uppercase tracking-wider detail-feed-heading">
-                        통합 독서 피드 (최신순)
-                      </span>
-                      <span>총 {sortedTimelineItems.length}개의 기록</span>
-                    </div>
-
-                    {timelineLoading ? (
-                      <div className="text-center py-8 text-stone-500 detail-header-meta">노션에서 기록을 불러오는 중입니다...</div>
-                    ) : sortedTimelineItems.length === 0 ? (
-                      <div className="text-center py-10 bg-stone-50/70 rounded-2xl border border-dashed border-stone-300 space-y-2 detail-empty-box">
-                        <span className="text-2xl">📖</span>
-                        <p className="text-sm font-semibold text-stone-600 detail-feed-text">아직 작성된 일지나 문장이 없습니다.</p>
-                        <p className="text-xs text-stone-400 detail-header-meta">
-                          {checkIsOwner(activeDetailBook)
-                            ? '상단의 [+ 독서일지 작성] 또는 [+ 문장수집 작성] 버튼을 눌러 첫 기록을 남겨보세요!'
-                            : '아직 등록된 진도나 문장 수집이 없습니다.'}
-                        </p>
-                      </div>
-                    ) : (
-                      sortedTimelineItems.map((item) => {
-                        const canDelete =
-                          checkIsOwner(activeDetailBook) ||
-                          (nickname && item.nickname && nickname.trim() === item.nickname.trim());
-                        return item.type === 'log' ? (
-                          /* 독서일지 카드 */
-                          <div
-                            key={`log-${item.id}`}
-                            className="p-4 bg-white rounded-2xl border border-amber-200/80 shadow-sm hover:shadow transition detail-feed-log-card"
-                          >
-                            <div className="flex items-center justify-between text-xs mb-2 gap-2">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold flex items-center gap-1">
-                                  <span>📖</span> 독서일지
-                                </span>
-                                <span className="font-semibold text-stone-600 font-mono detail-header-meta">
-                                  {item.page}p 읽음
-                                </span>
-                                <span className="text-stone-400">·</span>
-                                <span className="text-stone-500 detail-header-meta">{item.date}</span>
-                                {item.nickname && item.nickname !== activeDetailBook.nickname && (
-                                  <>
-                                    <span className="text-stone-400">·</span>
-                                    <span className="text-stone-400">by {item.nickname}</span>
-                                  </>
-                                )}
-                              </div>
-                              {canDelete && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteLog(item.id)}
-                                  className="bg-transparent hover:bg-rose-50 text-stone-400 hover:text-rose-600 transition px-2 py-1 rounded-lg text-xs font-medium flex-shrink-0"
-                                  title="독서일지 삭제"
-                                >
-                                  삭제 🗑️
-                                </button>
-                              )}
-                            </div>
-                            <p className="text-sm text-stone-800 whitespace-pre-line leading-relaxed pl-1 detail-feed-text">
-                              {item.content}
-                            </p>
-                          </div>
-                        ) : (
-                          /* 문장수집 카드 (글자기울임 표시) */
-                          <div
-                            key={`insight-${item.id}`}
-                            className="p-4 bg-emerald-50/40 rounded-2xl border border-emerald-200/80 shadow-sm hover:shadow transition detail-feed-insight-card"
-                          >
-                            <div className="flex items-center justify-between text-xs mb-2 gap-2">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 font-bold flex items-center gap-1">
-                                  <span>💡</span> 문장수집
-                                </span>
-                                <span className="font-semibold text-emerald-900 font-mono">
-                                  {item.page ? `${item.page}` : '페이지 미정'}
-                                </span>
-                                <span className="text-stone-400">·</span>
-                                <span className="text-stone-500 detail-header-meta">{item.date}</span>
-                                {item.nickname && item.nickname !== activeDetailBook.nickname && (
-                                  <>
-                                    <span className="text-stone-400">·</span>
-                                    <span className="text-stone-400">by {item.nickname}</span>
-                                  </>
-                                )}
-                              </div>
-                              {canDelete && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteInsight(item.id)}
-                                  className="bg-transparent hover:bg-rose-50 text-stone-400 hover:text-rose-600 transition px-2 py-1 rounded-lg text-xs font-medium flex-shrink-0"
-                                  title="문장수집 삭제"
-                                >
-                                  삭제 🗑️
-                                </button>
-                              )}
-                            </div>
-                            <blockquote
-                              className="text-sm text-stone-800 italic border-l-4 border-emerald-500 pl-3 leading-relaxed whitespace-pre-line bg-white/60 p-2.5 rounded-r-xl detail-feed-insight-quote"
-                              style={{ fontStyle: 'italic' }}
-                            >
-                              {item.content}
-                            </blockquote>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* AI 감상문 탭 */}
-              {detailTab === 'ai' && (
-                <div>
-                  {checkIsOwner(activeDetailBook) ? (
-                    <div className="ai-control-box">
-                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                        <span className="text-xs font-bold text-amber-900">
-                          현재 AI 엔진: {activeAiName}
-                        </span>
-                        <button
-                          type="button"
-                          className="ghost-button text-xs py-1 px-2.5"
-                          onClick={() => setShowSettingsModal(true)}
-                        >
-                          ⚙️ AI 변경
-                        </button>
-                      </div>
-                      <p>누적된 진도와 문장 기록들을 바탕으로 {activeAiName} AI가 1인칭 독자의 독서 감상문 초안을 작성합니다.</p>
-                      <button className="mt-3 w-full" onClick={handleGenerateAi} disabled={aiLoading}>
-                        {aiLoading ? `🤖 ${activeAiName}가 감상문을 분석하고 작성 중입니다...` : `✨ ${activeAiName} 감상문 생성하기`}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-600 mb-3">
-                      💡 도서 등록자(<strong>{activeDetailBook.nickname}</strong>님)만 AI 감상문을 생성 및 갱신할 수 있습니다.
-                    </div>
-                  )}
-
-                  {aiReport ? (
-                    <div className="mt-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-bold text-amber-900">생성된 AI 독후감</span>
-                        <button
-                          className="ghost-button text-xs py-1 px-2"
-                          onClick={() => {
-                            navigator.clipboard.writeText(aiReport);
-                            alert('클립보드에 감상문이 복사되었습니다!');
-                          }}
-                        >
-                          📋 초안 복사하기
-                        </button>
-                      </div>
-                      <div className="ai-report-box">{aiReport}</div>
-                    </div>
-                  ) : !checkIsOwner(activeDetailBook) ? (
-                    <div className="text-center py-8 text-stone-500 text-sm">
-                      아직 등록자({activeDetailBook.nickname}님)가 생성한 AI 감상문이 없습니다.
-                    </div>
-                  ) : null}
-                </div>
-              )}
-
-              {/* 나의 감상문 탭 */}
-              {detailTab === 'my' && (
-                <div className="space-y-3">
-                  {checkIsOwner(activeDetailBook) ? (
-                    <>
-                      <p className="text-xs text-stone-500">나만의 최종 감상문을 작성해 보세요. 저장 시 노션 도서 본문에 콜아웃 블록으로 박제됩니다.</p>
-                      <textarea
-                        rows={10}
-                        placeholder="이 책을 읽고 느낀 나만의 생각을 자유롭게 적어주세요..."
-                        value={myReport}
-                        onChange={(e) => setMyReport(e.target.value)}
-                      ></textarea>
-                      <div className="text-right">
-                        <button onClick={handleSaveMyReport} disabled={myReportSaving}>
-                          {myReportSaving ? '노션으로 저장 중...' : '노션으로 내보내기 & 저장'}
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div>
-                      <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-600 mb-3">
-                        💡 <strong>{activeDetailBook.nickname}</strong>님이 작성한 최종 독서 감상문입니다. (읽기 전용)
-                      </div>
-                      {myReport ? (
-                        <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-stone-800 text-sm whitespace-pre-wrap leading-relaxed">
-                          {myReport}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-stone-500 text-sm">
-                          아직 등록자({activeDetailBook.nickname}님)가 작성한 감상문이 없습니다.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* 하단 푸터 */}
-            <div className="mt-4 p-4 bg-stone-50 border-t border-stone-200 rounded-xl flex items-center justify-between detail-modal-footer">
-              {checkIsOwner(activeDetailBook) ? (
-                <button
-                  type="button"
-                  onClick={() => handleDeleteBook(activeDetailBook.bookId)}
-                  className="px-3.5 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition flex items-center gap-1.5"
-                >
-                  <span>🗑️</span>
-                  <span>도서 삭제</span>
-                </button>
-              ) : (
-                <div />
-              )}
-              <button
-                type="button"
-                onClick={() => setShowDetailModal(false)}
-                className="px-5 py-2 text-xs sm:text-sm font-bold rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-800 transition"
-              >
-                닫기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 4. 진도 기록 모달 + 📷 사진 OCR (서브 모달 z-index 10050) */}
-      {showLogModal && selectedBook && (
-        <div className="modal modal-sub" style={{ zIndex: 10050 }}>
-          <div className="modal-backdrop" onClick={() => { setShowLogModal(false); setLogImageUrl(''); }}></div>
-          <div className="modal-card">
-            <div className="section-title-row">
-              <div>
-                <h2>{editingLogId ? '진도 기록 수정' : '진도 기록 추가'}</h2>
-                <p className="subtitle">{selectedBook.title}</p>
-              </div>
-              <button className="ghost-button" onClick={() => { setShowLogModal(false); setLogImageUrl(''); }}>닫기</button>
-            </div>
-            <form onSubmit={handleSubmitLog} className="space-y-3">
-              <label>읽은 날짜<input type="date" value={readDate} onChange={(e) => setReadDate(e.target.value)} required /></label>
-              <label>현재까지 읽은 누적 페이지수 (쪽)
-                <input type="number" min="0" max={selectedBook.totalPages || 9999} value={readPages} onChange={(e) => setReadPages(Number(e.target.value))} required />
-              </label>
-
-              {/* 📷 사진 첨부 & OCR 기능 */}
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
-                <span className="text-xs font-bold text-amber-900">📷 책 페이지 또는 메모 사진 첨부 (AI 감상/요약 추출)</span>
-                <input type="file" accept="image/*" onChange={handleLogOcrImageUpload} className="text-xs" />
-                {logOcrLoading && <p className="text-xs text-amber-700 animate-pulse">🤖 AI가 사진 속 문장을 읽어내는 중입니다...</p>}
-                {logImageUrl && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <img src={logImageUrl} alt="미리보기" className="w-16 h-16 object-cover rounded border" />
-                    <button type="button" className="ghost-button text-xs py-1 px-2" onClick={() => setLogImageUrl('')}>사진 취소</button>
-                  </div>
-                )}
-              </div>
-
-              <label>간단한 감상 및 요약 메모
-                <textarea rows={4} value={note} onChange={(e) => setNote(e.target.value)} placeholder="오늘 읽은 분량의 생각이나 핵심을 자유롭게 적어보세요... 사진을 첨부하면 AI가 텍스트를 추출해 채워줍니다."></textarea>
-              </label>
-              <div className="text-right mt-4"><button type="submit">기록 저장 (노션 동기화)</button></div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 5. 문장 수집 모달 + 📷 사진 OCR (서브 모달 z-index 10050) */}
-      {showInsightModal && selectedBook && (
-        <div className="modal modal-sub" style={{ zIndex: 10050 }}>
-          <div className="modal-backdrop" onClick={() => setShowInsightModal(false)}></div>
-          <div className="modal-card">
-            <div className="section-title-row">
-              <div>
-                <h2>{editingPageLogId ? '문장 수집 수정' : '인사이트(문장) 수집'}</h2>
-                <p className="subtitle">{selectedBook.title}</p>
-              </div>
-              <button className="ghost-button" onClick={() => setShowInsightModal(false)}>닫기</button>
-            </div>
-            <form onSubmit={handleSubmitInsight} className="space-y-3">
-              <label>해당 페이지 번호<input type="text" placeholder="예: 105" value={insightPage} onChange={(e) => setInsightPage(e.target.value)} required /></label>
-              
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
-                <span className="text-xs font-bold text-amber-900">📷 책 페이지 또는 손글씨 사진 첨부 (AI 자동 추출)</span>
-                <input type="file" accept="image/*" onChange={handleOcrImageUpload} className="text-xs" />
-                {ocrLoading && <p className="text-xs text-amber-700 animate-pulse">🤖 AI가 사진 속 문장을 읽어내는 중입니다...</p>}
-                {insightImageUrl && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <img src={insightImageUrl} alt="미리보기" className="w-16 h-16 object-cover rounded border" />
-                    <button type="button" className="ghost-button text-xs py-1 px-2" onClick={() => setInsightImageUrl('')}>사진 취소</button>
-                  </div>
-                )}
-              </div>
-
-              <label>발췌 문장 및 나의 생각
-                <textarea rows={5} placeholder="문장을 직접 입력하거나 사진을 업로드해 텍스트를 추출하세요..." value={insightNotes} onChange={(e) => setInsightNotes(e.target.value)} required></textarea>
-              </label>
-
-              <div className="text-right mt-4"><button type="submit">인사이트 저장</button></div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 6. 도서 수정/삭제 모달 (서브 모달 z-index 10050) */}
-      {showEditBookModal && selectedBook && (
-        <div className="modal modal-sub" style={{ zIndex: 10050 }}>
-          <div className="modal-backdrop" onClick={() => setShowEditBookModal(false)}></div>
-          <div className="modal-card">
-            <div className="section-title-row">
-              <div>
-                <h2>도서 정보 관리 및 수정</h2>
-                <p className="subtitle">{selectedBook.title}</p>
-              </div>
-              <button className="ghost-button" onClick={() => setShowEditBookModal(false)}>닫기</button>
-            </div>
-            <form onSubmit={handleUpdateBook} className="space-y-3">
-              <label>도서명<input type="text" value={manualTitle} onChange={(e) => setManualTitle(e.target.value)} required /></label>
-              <label>저자<input type="text" value={manualAuthor} onChange={(e) => setManualAuthor(e.target.value)} /></label>
-              <label>출판사<input type="text" value={manualPublisher} onChange={(e) => setManualPublisher(e.target.value)} /></label>
-              <label>전체 페이지수<input type="number" min="0" value={manualPages} onChange={(e) => setManualPages(Number(e.target.value))} /></label>
-              <label>표지 이미지 URL<input type="url" value={manualCover} onChange={(e) => setManualCover(e.target.value)} /></label>
-              <label>책 소개<textarea rows={3} value={manualDesc} onChange={(e) => setManualDesc(e.target.value)}></textarea></label>
-              
-              <div className="flex justify-between items-center mt-5 pt-3 border-t">
-                <button
-                  type="button"
-                  style={{ background: 'var(--danger)' }}
-                  onClick={() => handleDeleteBook(selectedBook.bookId)}
-                >
-                  도서 삭제
-                </button>
-                <button type="submit">변경사항 저장</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 7. 설정 모달 (이미지 3 검색 API 설정 복원) */}
-      {showSettingsModal && (
-        <div className="modal">
-          <div className="modal-backdrop" onClick={() => setShowSettingsModal(false)}></div>
-          <div className="modal-card space-y-4">
-            <div className="section-title-row">
-              <h2>⚙️ 설정</h2>
-              <button className="ghost-button" onClick={() => setShowSettingsModal(false)}>닫기</button>
-            </div>
-
-            <label>🎨 앱 디자인 테마 선택
-              <select value={theme} onChange={(e) => changeTheme(e.target.value)}>
-                <option value="theme-base">오리지널 (따뜻한 베이지)</option>
-                <option value="theme-notion">노션 스타일 (화이트 & 블루)</option>
-                <option value="theme-dark">야간 모드 (다크 그레이)</option>
-              </select>
-            </label>
-
-            {/* 🤖 AI 엔진 선택 설정 (Gemini / EXAONE) */}
-            <div className="pt-3 border-t">
-              <h3 className="font-bold text-sm text-stone-800 mb-2">🤖 AI 엔진 설정 (독서 감상문 & OCR)</h3>
-              <label>사용할 AI 선택
-                <select
-                  value={aiProvider}
-                  onChange={(e) => changeAiProvider(e.target.value as AiProvider)}
-                >
-                  <option value="gemini">Google Gemini (감상문 + 이미지 OCR 멀티모달)</option>
-                  <option value="exaone">LG EXAONE (K-EXAONE 2.5 한국어 특화 감상문)</option>
-                </select>
-              </label>
-
-              {aiStatus && (
-                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <div className={`p-2 rounded-lg border ${aiStatus.geminiConfigured ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-stone-50 border-stone-200 text-stone-500'}`}>
-                    <span className="font-bold">Gemini:</span>{' '}
-                    {aiStatus.geminiConfigured ? '연결됨' : '미설정 (GEMINI_API_KEY)'}
-                  </div>
-                  <div className={`p-2 rounded-lg border ${aiStatus.exaoneConfigured ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-stone-50 border-stone-200 text-stone-500'}`}>
-                    <span className="font-bold">EXAONE:</span>{' '}
-                    {aiStatus.exaoneConfigured ? '연결됨' : '미설정 (EXAONE_API_KEY)'}
-                  </div>
-                </div>
-              )}
-
-              <p className="text-xs text-stone-500 mt-1.5 leading-relaxed">
-                ※ Vercel 환경변수에 <code>GEMINI_API_KEY</code> 또는 <code>EXAONE_API_KEY</code>를 등록해 주세요.
-                {aiProvider === 'exaone' && !aiStatus?.exaoneVisionSupported && (
-                  <> K-EXAONE 2.5는 텍스트 전용 모델이므로 사진 OCR은 Gemini 비전(키 설정 시)으로 자동 보완됩니다.</>
-                )}
-              </p>
-            </div>
-
-            {/* 🛠️ 도서 검색 API 설정 (이미지 3 원형 복원) */}
-            <div className="pt-3 border-t">
-              <h3 className="font-bold text-sm text-stone-800 mb-2">🛠️ 도서 검색 API 설정</h3>
-              <label>검색 API 선택
-                <select
-                  value={searchApiType}
-                  onChange={(e: any) => changeSearchApiType(e.target.value)}
-                >
-                  <option value="kakao">카카오 + 국립중앙도서관 (추천 / 쪽수 연동)</option>
-                  <option value="aladin">알라딘 검색 (쪽수 자동 제공)</option>
-                  <option value="naver">네이버 검색 (고화질 표지)</option>
-                </select>
-              </label>
-              <p className="text-xs text-stone-500 mt-1">
-                ※ 선택하신 API 키가 Vercel 환경변수 또는 로컬 환경변수에 등록되어 있어야 작동합니다.
-              </p>
-            </div>
-
-            <div className="pt-3 border-t">
-              <span className="text-xs font-bold text-stone-600 block mb-2">👤 현재 로그인 프로필</span>
-              <div className="p-3 bg-amber-50 border rounded-xl flex flex-wrap justify-between items-center gap-2">
-                <div>
-                  <p className="font-bold text-sm">{nickname ? nickname : '미로그인 (입장 전 / 둘러보기)'}</p>
-                  <p className="text-xs text-stone-500">
-                    {nickname ? `PIN: ${pin ? '••••' : '미입력'}` : '닉네임으로 입장하면 내 서재를 기록할 수 있습니다.'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button className="ghost-button text-xs" onClick={() => { setShowSettingsModal(false); setShowLoginModal(true); }}>
-                    {nickname ? '프로필 변경' : '로그인 / 등록'}
-                  </button>
-                  {(nickname || user) && (
+            {/* 탭 1. 통합 타임라인 피드 + 인라인 작성 폼 */}
+            {detailTab === 'timeline' && (
+              <div className="space-y-4">
+                {checkIsOwner(activeDetailBook) && (
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className="ghost-button text-xs"
-                      style={{ color: 'var(--danger)', borderColor: '#f2c9c5' }}
-                      onClick={() => handleLogout()}
+                      className={`text-xs px-3.5 py-2 rounded-xl font-bold border transition ${
+                        activeDetailForm === 'log'
+                          ? 'bg-amber-800 text-white border-amber-800 shadow-sm'
+                          : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-50'
+                      }`}
+                      onClick={() => setActiveDetailForm((prev) => (prev === 'log' ? 'none' : 'log'))}
                     >
-                      🚪 로그아웃
+                      {activeDetailForm === 'log' ? '✕ 진도 작성 닫기' : '＋ 진도 기록 남기기'}
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      className={`text-xs px-3.5 py-2 rounded-xl font-bold border transition ${
+                        activeDetailForm === 'insight'
+                          ? 'bg-emerald-800 text-white border-emerald-800 shadow-sm'
+                          : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-50'
+                      }`}
+                      onClick={() => setActiveDetailForm((prev) => (prev === 'insight' ? 'none' : 'insight'))}
+                    >
+                      {activeDetailForm === 'insight' ? '✕ 문장수집 닫기' : '＋ 문장 수집 (사진 OCR)'}
+                    </button>
+                  </div>
+                )}
+
+                {/* 인라인 진도 기록 폼 */}
+                {activeDetailForm === 'log' && (
+                  <form
+                    onSubmit={handleSubmitInlineLog}
+                    className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-3"
+                  >
+                    <div className="flex items-center justify-between pb-1 border-b border-amber-200">
+                      <span className="text-xs font-bold text-amber-900">📖 진도 및 감상 기록</span>
+                      <span className="text-[11px] text-stone-500">
+                        전체 {activeDetailBook.totalPages || '?'}쪽 중
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="block text-xs font-bold text-stone-700">
+                        읽은 날짜
+                        <input
+                          type="date"
+                          value={inlineLogDate}
+                          onChange={(e) => setInlineLogDate(e.target.value)}
+                          className="mt-1 w-full"
+                          required
+                        />
+                      </label>
+                      <label className="block text-xs font-bold text-stone-700">
+                        현재까지 누적 페이지
+                        <input
+                          type="number"
+                          min="0"
+                          max={activeDetailBook.totalPages || 9999}
+                          placeholder={`예: ${(activeDetailBook.readPages || 0) + 10}`}
+                          value={inlineLogPage}
+                          onChange={(e) => setInlineLogPage(e.target.value)}
+                          className="mt-1 w-full"
+                          required
+                        />
+                      </label>
+                    </div>
+
+                    <label className="block text-xs font-bold text-stone-700">
+                      감상 및 요약 메모
+                      <textarea
+                        rows={3}
+                        value={inlineLogContent}
+                        onChange={(e) => setInlineLogContent(e.target.value)}
+                        placeholder="오늘 읽은 분량의 생각이나 느낌을 자유롭게 적어보세요..."
+                        className="mt-1 w-full"
+                        required
+                      />
+                    </label>
+
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        className="ghost-button text-xs py-1.5 px-3"
+                        onClick={() => setActiveDetailForm('none')}
+                      >
+                        취소
+                      </button>
+                      <button type="submit" disabled={submittingInlineLog} className="text-xs py-1.5 px-4 font-bold">
+                        {submittingInlineLog ? '저장 중...' : '기록 저장'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* 인라인 문장 수집 폼 (사진 OCR 탑재) */}
+                {activeDetailForm === 'insight' && (
+                  <form
+                    onSubmit={handleSubmitInlineInsight}
+                    className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-3"
+                  >
+                    <div className="flex items-center justify-between pb-1 border-b border-emerald-200">
+                      <span className="text-xs font-bold text-emerald-950">💡 감명 깊은 문장 수집</span>
+                      <span className="text-[11px] text-stone-500">본문 사진 첨부 지원</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="block text-xs font-bold text-stone-700">
+                        수집 날짜
+                        <input
+                          type="date"
+                          value={inlineInsightDate}
+                          onChange={(e) => setInlineInsightDate(e.target.value)}
+                          className="mt-1 w-full"
+                          required
+                        />
+                      </label>
+                      <label className="block text-xs font-bold text-stone-700">
+                        해당 페이지 번호
+                        <input
+                          type="text"
+                          placeholder="예: 42 또는 105-108"
+                          value={inlineInsightPage}
+                          onChange={(e) => setInlineInsightPage(e.target.value)}
+                          className="mt-1 w-full"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="p-3 bg-white rounded-xl border border-emerald-200 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-emerald-900">
+                          📷 페이지 또는 필기 사진 첨부 (AI OCR)
+                        </span>
+                        {inlineInsightOcrLoading && (
+                          <span className="text-xs text-emerald-700 font-bold animate-pulse">
+                            텍스트 판독 중...
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          runOcrFromFile(file, setInlineInsightOcrLoading, setInlineInsightImageUrl, (ocrText) => {
+                            setInlineInsightQuote((prev) => (prev ? `${prev}\n\n${ocrText}` : ocrText));
+                          });
+                        }}
+                        className="text-xs w-full"
+                      />
+                      {inlineInsightImageUrl && (
+                        <div className="flex items-center gap-2 pt-1">
+                          <img
+                            src={inlineInsightImageUrl}
+                            alt="첨부 미리보기"
+                            className="w-14 h-14 object-cover rounded border"
+                          />
+                          <button
+                            type="button"
+                            className="ghost-button text-xs py-1 px-2"
+                            onClick={() => setInlineInsightImageUrl('')}
+                          >
+                            사진 삭제
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <label className="block text-xs font-bold text-stone-700">
+                      발췌 문장 및 생각
+                      <textarea
+                        rows={3}
+                        value={inlineInsightQuote}
+                        onChange={(e) => setInlineInsightQuote(e.target.value)}
+                        placeholder="마음에 와닿은 문장을 직접 적거나 사진을 올려 텍스트를 추출해 보세요..."
+                        className="mt-1 w-full"
+                        required
+                      />
+                    </label>
+
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        className="ghost-button text-xs py-1.5 px-3"
+                        onClick={() => setActiveDetailForm('none')}
+                      >
+                        취소
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={submittingInlineInsight}
+                        className="text-xs py-1.5 px-4 font-bold bg-emerald-800 text-white"
+                      >
+                        {submittingInlineInsight ? '수집 중...' : '문장 수집'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* 타임라인 항목 목록 */}
+                {timelineLoading ? (
+                  <div className="p-8 text-center text-xs text-stone-500 animate-pulse">
+                    타임라인 기록을 불러오는 중...
+                  </div>
+                ) : sortedTimelineItems.length === 0 ? (
+                  <div className="p-8 text-center bg-stone-50 rounded-2xl border border-stone-200 text-stone-500 text-xs">
+                    아직 남겨진 독서 기록이 없습니다. 위 버튼을 눌러 첫 기록을 남겨보세요!
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+                    {sortedTimelineItems.map((item) => {
+                      const isOwner = checkIsOwner(activeDetailBook);
+                      return (
+                        <div
+                          key={item.id}
+                          className={`p-3.5 rounded-2xl border transition ${
+                            item.type === 'insight'
+                              ? 'bg-emerald-50/50 border-emerald-200'
+                              : 'bg-white border-stone-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                                  item.type === 'insight'
+                                    ? 'bg-emerald-200/80 text-emerald-950'
+                                    : 'bg-amber-100 text-amber-900'
+                                }`}
+                              >
+                                {item.type === 'insight' ? '💡 문장수집' : '📅 독서일지'}
+                              </span>
+                              <span className="text-xs font-bold text-stone-700">
+                                {item.page ? `${item.page}쪽` : '쪽수 미상'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-stone-400 text-xs">
+                              <time>{item.date}</time>
+                              {isOwner && (
+                                <button
+                                  type="button"
+                                  className="text-stone-400 hover:text-rose-600 bg-transparent border-0 p-0 text-xs"
+                                  onClick={() =>
+                                    item.type === 'log'
+                                      ? handleDeleteLog(item.id)
+                                      : handleDeleteInsight(item.id)
+                                  }
+                                >
+                                  삭제
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-stone-800 leading-relaxed whitespace-pre-wrap">
+                            {item.type === 'insight' ? `“${item.content}”` : item.content}
+                          </p>
+
+                          {item.imageUrl && (
+                            <div className="mt-2 rounded-xl overflow-hidden border border-stone-200 max-w-xs">
+                              <img src={item.imageUrl} alt="첨부 사진" className="w-full h-auto max-h-48 object-cover" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 탭 2. AI 1인칭 감상문 초안 */}
+            {detailTab === 'ai' && (
+              <div className="space-y-4">
+                <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-xs font-bold text-amber-950 mb-0.5">
+                      ✨ {activeAiName} 1인칭 감상문 초안 생성
+                    </h3>
+                    <p className="text-[11px] text-stone-600">
+                      누적된 진도 일지와 발췌 문장들을 융합해 독자 시점의 깊이 있는 감상문을 작성합니다.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={aiLoading}
+                    onClick={handleGenerateAiReport}
+                    className="px-4 py-2 text-xs font-bold rounded-xl"
+                  >
+                    {aiLoading ? 'AI 작성 중...' : `✨ ${activeAiName} 초안 작성`}
+                  </button>
+                </div>
+
+                {aiReport ? (
+                  <div className="p-4 rounded-2xl bg-white border border-stone-200 text-xs leading-relaxed text-stone-800 whitespace-pre-wrap max-h-[50vh] overflow-y-auto">
+                    {aiReport}
+                  </div>
+                ) : (
+                  <div className="p-10 text-center text-xs text-stone-400 bg-stone-50 rounded-2xl border border-stone-200">
+                    아직 생성된 AI 감상문이 없습니다. 위 버튼을 눌러 초안을 생성해 보세요.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 탭 3. 나의 감상문 백업 */}
+            {detailTab === 'my' && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-xs font-bold text-stone-800 mb-1">✍️ 나의 최종 감상문 작성</h3>
+                  <p className="text-[11px] text-stone-500 mb-2">
+                    AI 초안을 다듬거나 직접 느낀 소감을 작성해 노션 도서 페이지 본문에 영구 보관합니다.
+                  </p>
+                  <textarea
+                    rows={12}
+                    value={myReport}
+                    onChange={(e) => setMyReport(e.target.value)}
+                    placeholder="나만의 감상문을 자유롭게 기록해 보세요..."
+                    className="w-full text-xs p-3.5 rounded-2xl border border-stone-300 leading-relaxed"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={myReportSaving}
+                    onClick={handleSaveMyReport}
+                    className="px-5 py-2.5 text-xs font-bold rounded-xl"
+                  >
+                    {myReportSaving ? '노션 저장 중...' : '노션 본문에 저장하기 ↗'}
+                  </button>
                 </div>
               </div>
-            </div>
-
-            <div className="pt-3 border-t">
-              <span className="text-xs font-bold text-amber-900 block mb-1">🔄 기존 데이터 사용자 관계형 자동 연결</span>
-              <p className="text-xs text-stone-500 mb-3">
-                과거 구글 시트/노션에 등록된 기존 도서와 일지의 닉네임을 읽어, 새 사용자 DB에 페이지를 만들고 관계형(Relation)으로 묶어줍니다.
-              </p>
-              <button className="w-full text-xs py-2 bg-stone-700" onClick={handleMigrateOldData}>
-                기존 데이터 자동 마이그레이션 실행
-              </button>
-            </div>
-
-            <div className="pt-4 border-t">
-              <button
-                type="button"
-                className="w-full py-3 font-bold"
-                onClick={() => {
-                  localStorage.setItem('app_theme', theme);
-                  localStorage.setItem('search_api_type', searchApiType);
-                  localStorage.setItem('ai_provider', aiProvider);
-                  alert(`✅ 설정이 안전하게 저장되었습니다.\n(선택된 AI: ${aiProvider === 'exaone' ? 'LG EXAONE' : 'Google Gemini'})`);
-                  setShowSettingsModal(false);
-                }}
-              >
-                설정 저장
-              </button>
-            </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* 8. 공식 사용법 가이드 모달 (Book Tuning Guide.html 원문 100% 반영) */}
-      {showTutorialModal && (
-        <div className="modal">
-          <div className="modal-backdrop" onClick={() => setShowTutorialModal(false)}></div>
-          <div className="modal-card" style={{ maxWidth: '640px' }}>
-            <div className="section-title-row">
-              <div>
-                <span className="text-xs bg-amber-800 text-white font-bold px-2 py-0.5 rounded-full inline-block mb-1">Book Tuning v4.3</span>
-                <h2 style={{ color: 'var(--accent-dark)' }}>📚 북튜닝 (Book Tuning) 공식 사용자 가이드</h2>
-              </div>
-              <button className="ghost-button" onClick={() => setShowTutorialModal(false)}>닫기</button>
-            </div>
+      {/* 6-4. 사용법 스포트라이트 투어 & 홍보 동영상 */}
+      <SpotlightTutorial
+        isOpen={showTutorialModal}
+        onClose={() => setShowTutorialModal(false)}
+        onEnsureHomeTab={() => setActiveTab('home')}
+      />
 
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 text-sm leading-relaxed text-stone-700">
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
-                <p>책을 읽고 기록하며 내 삶과 생각의 주파수를 맞춰가는 공간입니다.<br />독서 기록부터 AI 감상문 생성, 노션(Notion) 자동 백업까지의 상세 안내를 확인하세요.</p>
-              </div>
-
-              <div>
-                <h3 className="font-bold text-base text-amber-900 border-l-4 border-amber-800 pl-2 mb-2">🤝 1. 시작하기 (온보딩 및 멤버 참여)</h3>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li><strong>서재 입장하기:</strong> 활동할 닉네임과 4자리 비밀번호(PIN)를 입력하고 입장합니다. 동명이인이 있더라도 고유 노션 사용자 페이지와 안전하게 관계형으로 연결됩니다.</li>
-                  <li><strong>다중 사용자 서재:</strong> [내 서재]에서는 내가 읽는 책들을, [커뮤니티 전체]에서는 모임원들이 함께 기록 중인 서재를 둘러볼 수 있습니다.</li>
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="font-bold text-base text-amber-900 border-l-4 border-amber-800 pl-2 mb-2">🔍 2. 도서 검색 및 스마트 API 연동</h3>
-                <div className="p-3 bg-white border border-stone-200 rounded-xl space-y-1 mb-2">
-                  <h4 className="font-bold text-amber-800">💡 카카오 + 국립중앙도서관 API (추천 하이브리드 모드)</h4>
-                  <ul className="list-disc pl-5 space-y-1 text-xs">
-                    <li><strong>작동 원리:</strong> 카카오 Book API를 이용해 도서 제목, 저자, 출판사, 표지, 책 소개를 실시간으로 검색하고, 카카오에서 제공하지 않는 <b>전체 쪽수</b>는 ISBN을 바탕으로 <b>국립중앙도서관 서지정보 API</b>에서 자동으로 보완하여 불러옵니다.</li>
-                    <li><strong>알라딘 & 네이버 검색:</strong> [⚙️ 설정] 메뉴에서 알라딘 TTB 검색(쪽수 자동 지원) 또는 네이버 도서 검색으로 자유롭게 전환하여 사용할 수 있습니다.</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-bold text-base text-amber-900 border-l-4 border-amber-800 pl-2 mb-2">📝 3. 독서 기록하기 & 타임라인 (v4.3 신기능)</h3>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li><strong>📅 진도 기록:</strong> 읽은 날짜, 현재까지 누적해서 읽은 페이지 수, 간단한 소감을 남깁니다.</li>
-                  <li><strong>💡 인사이트 (문장 수집 & 사진 OCR):</strong>
-                    <ul className="list-disc pl-5 mt-1 space-y-1 text-xs">
-                      <li>감명 깊었던 특정 페이지 번호와 발췌 문장, 나의 생각을 기록합니다.</li>
-                      <li><strong>📷 사진 첨부 & AI OCR:</strong> 책 본문이나 손글씨 필기 노트를 사진 찍어 올리면, <b>Google Gemini AI</b>가 이미지 속 글자를 자동으로 판독하여 입력창에 넣어줍니다.</li>
-                      <li><strong>노션 본문 사진 첨부:</strong> 사진이 첨부된 문장수집은 노션 DB 동기화 시 해당 페이지의 <b>본문 이미지 블록</b>으로 자동 삽입됩니다.</li>
-                    </ul>
-                  </li>
-                  <li><strong>📈 스마트 진도율 계산:</strong> 진도기록에 입력한 페이지와 문장수집에 적은 페이지 중 <b>더 큰 쪽수(최댓값)를 기준으로 진도율이 자동 연산</b>되어 프로그레스 바와 랭킹에 즉시 반영됩니다.</li>
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="font-bold text-base text-amber-900 border-l-4 border-amber-800 pl-2 mb-2">🤖 4. Gemini AI 감상문 & 노션(Notion) 동기화</h3>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li><strong>✨ Gemini AI 1인칭 감상문:</strong> 도서 상세 화면의 [✨ AI 초안] 탭에서 누적된 진도 일지와 문장들을 분석하여 1인칭 독자 어조의 깊이 있는 감상문 초안을 5~10초 만에 작성해 줍니다.</li>
-                  <li><strong>✍️ 나의 감상문 백업:</strong> 직접 작성한 최종 감상문을 입력하고 <b>[노션으로 내보내기 & 저장]</b>을 클릭하면, 내 노션 데이터베이스 페이지 내에 실시간 블록으로 안전하게 영구 저장됩니다.</li>
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="font-bold text-base text-amber-900 border-l-4 border-amber-800 pl-2 mb-2">🏆 5. 커뮤니티, 공감 & 랭킹보드</h3>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li><strong>❤️ 공감 (좋아요):</strong> 모임원이 독서 중인 책에 하트를 눌러 응원 메시지를 전달해 보세요.</li>
-                  <li><strong>🏆 독서 랭킹보드:</strong> 모임 내에서 누가 가장 많은 페이지를 읽었는지 실시간 독서량 랭킹을 확인할 수 있습니다.</li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="text-right pt-3 border-t mt-4">
-              <button onClick={() => setShowTutorialModal(false)}>가이드 닫기</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 9. 개발로그 모달 (backup Index.html 개발로그 원문 100% 반영) */}
-      {showDevLogModal && (
-        <div className="modal">
-          <div className="modal-backdrop" onClick={() => setShowDevLogModal(false)}></div>
-          <div className="modal-card" style={{ maxWidth: '600px' }}>
-            <div className="section-title-row">
-              <div><h2 style={{ color: 'var(--accent-dark)' }}>📝 개발 로그 (Release Notes)</h2></div>
-              <button className="ghost-button" onClick={() => setShowDevLogModal(false)}>닫기</button>
-            </div>
-            <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-2 text-xs leading-relaxed text-stone-700">
-              <div className="border-b pb-3">
-                <h4 className="font-bold text-sm text-amber-900 mb-1">v4.3 (현재 버전 - 노션 단독 백엔드 완전 이관)</h4>
-                <ul className="list-disc pl-5 space-y-0.5">
-                  <li>구글 시트를 완전히 제거하고 노션 데이터베이스 4종(도서, 독서일지, 문장수집, 사용자)을 단독 Primary DB로 완전 이관</li>
-                  <li>사용자 DB 신설 및 관계형(Relation) 연결을 통한 동명이인 식별 보장</li>
-                  <li>도서 검색 API 선택 기능 복원 (카카오+국립중앙도서관, 알라딘, 네이버 자유 선택)</li>
-                  <li>푸터에 '노션 데이터베이스 열기 ↗' 바로가기 알약 버튼 복원</li>
-                  <li>브라우저 탭 파비콘, 앱 로고 아이콘 및 모바일 홈 화면 추가(PWA) 지원</li>
-                </ul>
-              </div>
-
-              <div className="border-b pb-3">
-                <h4 className="font-bold text-sm text-stone-800 mb-1">v4.2</h4>
-                <ul className="list-disc pl-5 space-y-0.5">
-                  <li>문장수집(인사이트) 페이지 번호를 진도율 계산에 통합 반영 (진도기록과 문장수집 중 더 큰 쪽수 기준 자동 계산)</li>
-                  <li>문장수집 시 도서 본문 및 손글씨 메모 사진 첨부(업로드) 기능 추가</li>
-                  <li>Google Gemini AI 기반 실시간 OCR(문자 인식) 텍스트 자동 추출 및 손쉬운 편집 기능 지원</li>
-                  <li>노션(Notion) 문장수집 데이터베이스 동기화 시 업로드된 사진을 페이지 본문 이미지 블록으로 자동 첨부</li>
-                </ul>
-              </div>
-
-              <div className="border-b pb-3">
-                <h4 className="font-bold text-sm text-stone-800 mb-1">v4.1</h4>
-                <ul className="list-disc pl-5 space-y-0.5">
-                  <li>카카오(Kakao) 도서 검색 API 연동 추가</li>
-                  <li>신규 사용자를 위한 슬라이드형 튜토리얼(온보딩) 가이드 도입</li>
-                  <li>설정창 내 각종 API 키(도서검색, Gemini, Notion) 발급 안내 링크 추가</li>
-                  <li>마스터 전용 노션 템플릿 배포 및 관리자 복제 기능 추가</li>
-                  <li>모임 개설 시 비밀번호 인증 로직 및 커스텀 알림창 UI 개선</li>
-                </ul>
-              </div>
-
-              <div className="border-b pb-3">
-                <h4 className="font-bold text-sm text-stone-800 mb-1">v4.0</h4>
-                <ul className="list-disc pl-5 space-y-0.5">
-                  <li>SaaS형 다중 그룹 아키텍처 도입 (개별 구글 시트 독립 연동)</li>
-                  <li>상황별 동적 로딩 메시지 및 노션 하이퍼링크 기능 통합 적용</li>
-                </ul>
-              </div>
-
-              <div className="border-b pb-3">
-                <h4 className="font-bold text-sm text-stone-800 mb-1">v3.2</h4>
-                <ul className="list-disc pl-5 space-y-0.5">
-                  <li>알라딘 / 네이버 도서 검색 API 자유 선택(스위칭) 기능 추가</li>
-                  <li>사용자 취향에 맞춰 '자동 쪽수(알라딘)' 또는 '고화질 표지(네이버)' 선택 가능</li>
-                </ul>
-              </div>
-
-              <div className="border-b pb-3">
-                <h4 className="font-bold text-sm text-stone-800 mb-1">v3.1</h4>
-                <ul className="list-disc pl-5 space-y-0.5">
-                  <li>문장 수집용 노션 독립 데이터베이스 연동 기능 추가</li>
-                  <li>모달 창 겹침(z-index) 및 뒤로 숨는 UI 버그 수정</li>
-                  <li>스크립트 오타(수정 버튼 비활성화) 및 독서일지 규격 오류 해결</li>
-                  <li>개발 로그(Release Notes) 확인 기능 신설</li>
-                </ul>
-              </div>
-
-              <div className="border-b pb-3">
-                <h4 className="font-bold text-sm text-stone-800 mb-1">v3.0</h4>
-                <ul className="list-disc pl-5 space-y-0.5">
-                  <li>도서 검색 API 전면 교체 (알라딘 방화벽 ➔ 카카오 ➔ 네이버 API 정착)</li>
-                  <li>동일 도서 다중 등록 허용 (ISBN + 닉네임 동시 식별 로직 추가)</li>
-                  <li>노션 동기화 시 커버 이미지 화질 개선 및 속성(체크박스) 자동화</li>
-                </ul>
-              </div>
-
-              <div className="border-b pb-3">
-                <h4 className="font-bold text-sm text-stone-800 mb-1">v2.5</h4>
-                <ul className="list-disc pl-5 space-y-0.5">
-                  <li>커뮤니티 기능 추가 (다중 접속 및 타인 기록 열람 허용)</li>
-                  <li>랭킹보드 신설 및 도서 공감(좋아요) 기능 도입</li>
-                  <li>내 서재 / 커뮤니티 전체 서재 탭 분리</li>
-                </ul>
-              </div>
-
-              <div className="border-b pb-3">
-                <h4 className="font-bold text-sm text-stone-800 mb-1">v2.0</h4>
-                <ul className="list-disc pl-5 space-y-0.5">
-                  <li>Notion API 연동 (도서 DB 및 독서일지 DB 자동 동기화 구축)</li>
-                  <li>앱 내 기록 시 노션 페이지 내 실시간 블록 생성 기능 추가</li>
-                </ul>
-              </div>
-
-              <div className="border-b pb-3">
-                <h4 className="font-bold text-sm text-stone-800 mb-1">v1.5</h4>
-                <ul className="list-disc pl-5 space-y-0.5">
-                  <li>Gemini AI API 도입</li>
-                  <li>누적된 진도 및 문장 수집 데이터를 바탕으로 한 AI 1인칭 자동 감상문 초안 생성 기능 추가</li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-sm text-stone-800 mb-1">v1.0</h4>
-                <ul className="list-disc pl-5 space-y-0.5">
-                  <li>구글 앱스 스크립트(GAS) 기반 독서기록 웹앱 초기 버전 출시</li>
-                  <li>알라딘 API 연동 도서 검색 및 기본 기록 구글 시트 저장 기능 구현</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 10. 개인정보처리방침 모달 (backup Index.html 원문 1~8조항 100% 반영) */}
-      {showPrivacyModal && (
-        <div className="modal">
-          <div className="modal-backdrop" onClick={() => setShowPrivacyModal(false)}></div>
-          <div className="modal-card" style={{ maxWidth: '580px' }}>
-            <div className="section-title-row">
-              <div><h2 style={{ color: 'var(--accent-dark)' }}>🛡️ 개인정보처리방침</h2></div>
-              <button className="ghost-button" onClick={() => setShowPrivacyModal(false)}>닫기</button>
-            </div>
-            <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-2 text-xs leading-relaxed text-stone-700">
-              <p><strong>1. 수집하는 개인정보 항목 및 수집 방법</strong><br />본 앱은 서비스 제공을 위해 최소한의 개인정보인 '닉네임' 및 '독서 기록(진도, 감상문, 인사이트)'을 수집합니다. 닉네임은 가명 사용을 권장합니다.</p>
-              <p><strong>2. 개인정보의 수집 및 이용 목적</strong><br />수집된 정보는 모임 내에서 개인의 독서 기록을 식별하고, AI(Gemini)를 통한 맞춤형 독서 감상문 초안 작성을 위해 이용됩니다.</p>
-              <p><strong>3. 개인정보의 보유 및 이용 기간</strong><br />사용자의 개인정보는 모임 운영 기간 동안 또는 사용자가 삭제를 요청할 때까지 보관됩니다. 불필요해진 정보는 즉시 파기합니다.</p>
-              <p><strong>4. 제3자 제공 및 취급 위탁</strong><br />사용자가 작성한 기록은 AI 감상문 작성을 위해 'Google Gemini API'에 제공되며, 데이터 영구 저장을 위해 'Notion API'에 기록됩니다. 수탁자는 해당 목적 외에는 정보를 사용하지 않습니다.</p>
-              <p><strong>5. 정보주체의 권리 및 행사 방법 (열람, 정정, 삭제)</strong><br />사용자는 앱 내 기능(삭제 버튼 등)을 이용하여 본인의 기록을 언제든지 확인, 수정, 삭제할 수 있습니다.</p>
-              <p><strong>6. 아동 개인정보 보호</strong><br />본 앱은 학생 등 아동의 개인정보를 수집할 때 법정대리인의 동의 절차나 가명 처리를 통해 보호 조치를 다합니다.</p>
-              <p><strong>7. 개인정보 보호책임자</strong><br />해당 모임의 마스터 관리자(선생님)가 보호책임자 역할을 수행하며, 문의 사항은 앱 내 '지원/문의' 게시판을 통해 접수합니다.</p>
-              <p><strong>8. 개인정보의 안전성 확보 조치</strong><br />앱 접근을 위한 고유 승인 코드 시스템 등을 통해 비인가자의 접근을 차단하여 안전하게 관리합니다.</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 11. 저작권 및 이용 안내 모달 (backup Index.html 원문 1~4항 100% 반영) */}
-      {showCopyrightModal && (
-        <div className="modal">
-          <div className="modal-backdrop" onClick={() => setShowCopyrightModal(false)}></div>
-          <div className="modal-card" style={{ maxWidth: '560px' }}>
-            <div className="section-title-row">
-              <div><h2 style={{ color: 'var(--accent-dark)' }}>⚖️ 저작권 및 이용 안내</h2></div>
-              <button className="ghost-button" onClick={() => setShowCopyrightModal(false)}>닫기</button>
-            </div>
-            <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-2 text-xs leading-relaxed text-stone-700">
-              <p><strong>1. 권리자 (소유권)</strong><br />본 앱의 기획, 화면 설계 및 핵심 프롬프트(비법) 구조에 대한 모든 권리는 '기록조율사 서울외고 조용희 선생님'에게 있습니다.</p>
-              <p><strong>2. 이용 허락 범위</strong><br />누구나 접속하여 이용할 수 있으나, 그룹 개설은 교사만 가능합니다. 앱 코드를 참고하는 것은 가능하지만, 무단으로 복제하여 재배포하거나 동일한 서비스를 상업적으로 운영하는 것은 금지됩니다.</p>
-              <p><strong>3. AI 학습 및 크롤링 제한</strong><br />권리자의 사전 허락 없이 본 앱의 소스 코드나 핵심 로직을 AI 모델 학습(Training)에 무단으로 사용하는 것을 제한합니다.</p>
-              <p><strong>4. 외부 API 라이선스 준수</strong><br />본 앱은 네이버, 알라딘, 카카오 API 등을 비상업적·교육적 목적으로 안전하게 이용하고 있습니다.</p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 6-5. 설정, 개발로그(포스트잇 휠 캐러셀), 개인정보처리방침, 상세 저작권 모달 모음 */}
+      <AppInfoModals
+        theme={theme}
+        onChangeTheme={changeTheme}
+        searchApiType={searchApiType}
+        onChangeSearchApiType={changeSearchApiType}
+        aiProvider={aiProvider}
+        onChangeAiProvider={changeAiProvider}
+        aiStatus={aiStatus}
+        notionPageUrl={process.env.NEXT_PUBLIC_NOTION_DATABASE_URL}
+        showSettingsModal={showSettingsModal}
+        setShowSettingsModal={setShowSettingsModal}
+        showDevLogModal={showDevLogModal}
+        setShowDevLogModal={setShowDevLogModal}
+        showPrivacyModal={showPrivacyModal}
+        setShowPrivacyModal={setShowPrivacyModal}
+        showCopyrightModal={showCopyrightModal}
+        setShowCopyrightModal={setShowCopyrightModal}
+      />
     </>
   );
 }

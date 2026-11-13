@@ -63,6 +63,8 @@ export interface TimelineItem {
   createdAt?: string;
 }
 
+export type MainTabId = 'home' | 'library' | 'feed' | 'dex';
+
 export type AiProvider = 'gemini' | 'exaone';
 
 export interface AiStatusInfo {
