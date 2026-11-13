@@ -1921,6 +1921,9 @@ p {
   padding: 9px 10px;
   font-size: 12.5px;
   border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .lib-scope-btn.active {

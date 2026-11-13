@@ -231,6 +231,14 @@ export default function HomeTab({
 
   const selectedDayRecords = selectedDate ? recordsByDate[selectedDate] : null;
 
+  const displayMonthNum = Number(viewYearMonth.split('-')[1] || 1);
+  const targetTotal = myBooks.length > 0 ? myBooks.length : (readingBooks.length + monthlyStats.completedCount) || 5;
+  const ratio = targetTotal > 0 ? Math.min(1, monthlyStats.completedCount / targetTotal) : 0;
+  const radius = 34;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference * (1 - ratio);
+  const remainingCount = Math.max(0, targetTotal - monthlyStats.completedCount);
+
   return (
     <div className="home-layout">
       {/* 1. 상단 둥근 도서 검색바 */}
@@ -353,32 +361,37 @@ export default function HomeTab({
                       className="reading-now-card"
                       onClick={() => onSelectBook(book)}
                     >
-                      <div className="reading-now-cover-wrap">
+                      <div className="reading-now-cover">
                         {book.coverUrl ? (
-                          <img src={book.coverUrl} alt={book.title} className="reading-now-cover" />
+                          <img src={book.coverUrl} alt={book.title} />
                         ) : (
-                          <div className="reading-now-no-cover">표지 없음</div>
+                          <div className="reading-now-cover-fallback">{book.title}</div>
                         )}
-                        <span className="reading-now-percent-badge">{pct}%</span>
                       </div>
 
                       <div className="reading-now-info">
-                        <div className="flex items-center justify-between gap-1 mb-1">
-                          <h3 className="reading-now-title truncate">{book.title}</h3>
-                          <span className="text-[11px] text-stone-500 font-mono flex-shrink-0">
-                            {book.readPages || 0}/{book.totalPages || 0}쪽
-                          </span>
-                        </div>
-                        <p className="reading-now-author truncate">{book.author || '저자 미상'}</p>
+                        <h3 className="reading-now-book-title">{book.title}</h3>
+                        <p className="reading-now-book-author">
+                          {book.author || '저자 미상'}
+                          {book.publisher ? ` · ${book.publisher}` : ''}
+                          {book.nickname ? ` · [${book.nickname}]` : ''}
+                        </p>
 
-                        {/* 세그먼트 프로그레스 바 */}
-                        <div className="reading-now-segments" aria-label={`진도율 ${pct}%`}>
-                          {Array.from({ length: SEGMENT_COUNT }).map((_, i) => (
-                            <span
-                              key={i}
-                              className={`reading-now-seg ${i < filledSegments ? 'is-filled' : ''}`}
-                            />
-                          ))}
+                        {/* 세그먼트 점선 진행률 바 */}
+                        <div className="segment-progress-row">
+                          <div className="segment-track" aria-label={`진도율 ${pct}%`}>
+                            {Array.from({ length: SEGMENT_COUNT }).map((_, i) => (
+                              <span
+                                key={i}
+                                className={`segment-tick ${i < filledSegments ? 'filled' : ''}`}
+                              />
+                            ))}
+                          </div>
+                          <span className="segment-pct">{pct}%</span>
+                        </div>
+
+                        <div className="reading-now-pages">
+                          현재 페이지 <strong>{book.readPages || 0}</strong> / {book.totalPages || '?'}쪽
                         </div>
                       </div>
                     </article>
@@ -437,77 +450,96 @@ export default function HomeTab({
 
         {/* 우측 열: 월 독서기록 달력 & 월간 통계 */}
         <div className="home-col-secondary">
-          <section className="panel calendar-panel" data-tour="calendar">
-            <div className="calendar-head-row">
-              <div className="flex items-center gap-1.5">
-                <span className="text-base">📅</span>
-                <h2 className="text-sm font-extrabold text-stone-800">월 독서기록 달력</h2>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => changeMonth(-1)}
-                  className="calendar-arrow-btn"
-                  aria-label="이전 달"
-                >
-                  ‹
-                </button>
-                <span className="text-xs font-bold text-stone-800 px-1 font-mono">{viewYearMonth}</span>
-                <button
-                  type="button"
-                  onClick={() => changeMonth(1)}
-                  className="calendar-arrow-btn"
-                  aria-label="다음 달"
-                >
-                  ›
-                </button>
-              </div>
-            </div>
-
-            {/* 월간 요약 통계 3단 그리드 */}
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              <div className="bg-[#edeae4]/60 border border-stone-200/80 rounded-xl p-2 text-center">
-                <span className="block text-[10px] text-stone-500 font-medium">기록 일수</span>
-                <strong className="block text-sm font-extrabold text-amber-900 mt-0.5">{monthlyStats.daysCount}일</strong>
-              </div>
-              <div className="bg-[#edeae4]/60 border border-stone-200/80 rounded-xl p-2 text-center">
-                <span className="block text-[10px] text-stone-500 font-medium">월 누적 쪽수</span>
-                <strong className="block text-sm font-extrabold text-emerald-800 mt-0.5">{monthlyStats.pagesCount}쪽</strong>
-              </div>
-              <div className="bg-[#edeae4]/60 border border-stone-200/80 rounded-xl p-2 text-center">
-                <span className="block text-[10px] text-stone-500 font-medium">완독 권수</span>
-                <strong className="block text-sm font-extrabold text-sky-800 mt-0.5">{monthlyStats.completedCount}권</strong>
-              </div>
-            </div>
-
-            {/* 요일 헤더 (7열 그리드) */}
-            <div className="cal-weekdays">
-              {['일', '월', '화', '수', '목', '금', '토'].map((dow, idx) => (
-                <div key={dow} className={idx === 0 ? 'is-sun' : idx === 6 ? 'text-sky-600 font-bold' : ''}>
-                  {dow}
+          <section className="panel cal-panel" data-tour="calendar">
+            <div className="cal-top-bar">
+              <div className="cal-title-wrap">
+                <span className="cal-paw-icon" aria-hidden="true">🐾</span>
+                <h2 className="cal-title">{displayMonthNum}월 독서기록</h2>
+                <div className="cal-month-nav">
+                  <button type="button" className="cal-nav-arrow" onClick={() => changeMonth(-1)} aria-label="이전 달">‹</button>
+                  <span className="cal-ym-label">{viewYearMonth.replace('-', '.')}</span>
+                  <button type="button" className="cal-nav-arrow" onClick={() => changeMonth(1)} aria-label="다음 달">›</button>
                 </div>
-              ))}
+              </div>
+
+              <div className="cal-top-actions">
+                <button type="button" className="cal-report-link" onClick={onGoToFeed}>
+                  전체 피드 ›
+                </button>
+              </div>
             </div>
 
-            {/* 달력 날짜 그리드 (7열 그리드) */}
-            <div className="cal-days-grid">
-              {calendarDays.map((cell, idx) => {
-                if (!cell.dayNum) {
-                  return <div key={`empty-${idx}`} className="cal-day-empty" />;
-                }
-                const isSelected = selectedDate === cell.dateStr;
-                return (
-                  <button
-                    key={cell.dateStr}
-                    type="button"
-                    onClick={() => setSelectedDate(isSelected ? '' : cell.dateStr)}
-                    className={`cal-day-cell ${cell.hasRecord ? 'has-activity' : ''} ${cell.isToday ? 'is-today' : ''} ${isSelected ? 'is-selected' : ''}`}
-                    aria-label={`${cell.dateStr} ${cell.hasRecord ? '기록 있음' : ''}`}
-                  >
-                    <span>{cell.dayNum}</span>
-                  </button>
-                );
-              })}
+            {/* 본문 2단: 좌측 캘린더 + 우측 이번 달 목표 도넛 */}
+            <div className="cal-body-grid">
+              {/* 좌측: 캘린더 그리드 */}
+              <div className="cal-left-col">
+                <div className="cal-summary-row">
+                  <span><strong>{monthlyStats.daysCount}일</strong> 읽음</span>
+                  <span className="cal-divider">|</span>
+                  <span><strong>{monthlyStats.pagesCount}</strong>페이지</span>
+                  <span className="cal-divider">|</span>
+                  <span><strong>{monthlyStats.completedCount}권</strong> 완독</span>
+                </div>
+
+                <div className="cal-weekdays">
+                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w, i) => (
+                    <span key={i} className={i === 0 ? 'is-sun' : ''}>{w}</span>
+                  ))}
+                </div>
+
+                <div className="cal-days-grid">
+                  {calendarDays.map((cell, idx) => {
+                    if (!cell.dayNum) return <div key={`empty-${idx}`} className="cal-day-empty" />;
+                    const isSelected = selectedDate === cell.dateStr;
+                    return (
+                      <button
+                        key={cell.dateStr}
+                        type="button"
+                        onClick={() => setSelectedDate(isSelected ? '' : cell.dateStr)}
+                        className={[
+                          'cal-day-cell',
+                          cell.hasRecord ? 'has-activity' : '',
+                          cell.isToday ? 'is-today' : '',
+                          isSelected ? 'is-selected' : '',
+                        ].filter(Boolean).join(' ')}
+                        title={`${cell.dateStr}${cell.hasRecord ? ' (기록 있음)' : ''}`}
+                      >
+                        {cell.dayNum}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 우측: 이번 달 목표 도넛 차트 */}
+              <div className="cal-right-col">
+                <div className="cal-goal-header">
+                  <span className="cal-goal-title">🎯 이번 달 목표</span>
+                </div>
+
+                <div className="cal-donut-wrap">
+                  <svg viewBox="0 0 88 88" className="cal-donut-svg">
+                    <circle cx="44" cy="44" r={radius} className="cal-donut-track" />
+                    <circle
+                      cx="44"
+                      cy="44"
+                      r={radius}
+                      className="cal-donut-progress"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={strokeDashoffset}
+                      transform="rotate(-90 44 44)"
+                    />
+                  </svg>
+                  <div className="cal-donut-center">
+                    <strong>{monthlyStats.completedCount}</strong>
+                    <span>/{targetTotal}</span>
+                  </div>
+                </div>
+
+                <p className="cal-goal-caption">
+                  {remainingCount > 0 ? `목표까지 ${remainingCount}권 남았어요` : '모든 목표를 완독했어요! 🎉'}
+                </p>
+              </div>
             </div>
 
             {/* 선택한 날짜의 독서 기록 팝오버 */}

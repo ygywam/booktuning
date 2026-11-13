@@ -13,51 +13,72 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
   {
     selector: '[data-tour="search-bar"]',
-    badge: '검색 & 등록',
+    badge: '도서 검색',
     title: '도서 검색 및 직접 등록',
     description:
-      '책 제목이나 저자를 검색해 공유 서재에 바로 추가할 수 있어요. 직접 등록 버튼으로 수동 입력도 가능합니다.',
+      '책 제목이나 저자를 검색해 카카오·국립중앙도서관 서지정보와 함께 서재에 추가할 수 있어요. [직접 등록]으로 수동 입력도 가능합니다.',
   },
   {
     selector: '[data-tour="reading-now"]',
     badge: '지금 읽는 책',
     title: '읽고 있는 책 바로 기록하기',
     description:
-      '현재 내가 읽고 있는 책들의 진행률이 표시돼요. 책 카드를 누르면 독서일지, 문장수집, AI 감상문 창이 열립니다.',
+      '현재 읽고 있는 책들의 진행률을 직관적으로 확인해요. 책 카드를 누르면 독서일지와 인상 깊은 문장, AI 감상문 창이 열립니다.',
   },
   {
     selector: '[data-tour="calendar"]',
     badge: '독서 달력',
-    title: '월간 독서기록 달력 & 통계',
+    title: '월간 독서기록 달력 & 목표',
     description:
-      '독서 기록을 남긴 날이 달력에 색칠되고, 월별 읽은 날수와 누적 쪽수, 완독 권수를 한눈에 확인해요.',
+      '독서를 기록한 날이 달력에 색칠되고, 월별 읽은 날수와 누적 쪽수, 완독 권수 목표를 한눈에 파악해요. 날짜를 클릭하면 해당 일자의 독서일지와 문장을 열람할 수 있습니다.',
   },
   {
     selector: '[data-tour="recent-feed"]',
     badge: '최근 기록',
     title: '최근 독서기록 모아보기',
     description:
-      '내가 남긴 최신 일지와 문장이 쌓여요. 하단 피드 탭을 누르면 모든 구성원들의 실시간 독서 타임라인으로 이어집니다.',
+      '최근 남긴 독서일지와 문장수집이 모여요. 책 제목을 누르면 해당 도서의 상세 기록으로 바로 이동합니다.',
   },
   {
-    selector: '[data-tour="main-nav"]',
-    badge: '4대 메뉴',
-    title: '홈 · 서재 · 피드 · 도감',
+    selector: '[data-tour="nav-home"]',
+    badge: '메뉴 안내 1/4',
+    title: '🏠 홈',
     description:
-      '개인 대시보드(홈), macOS Dock 휠 캐러셀(서재), 구성원 전체 타임라인(피드), 완독 표지 컬렉션(도감)을 자유롭게 오갈 수 있어요.',
+      '지금 읽고 있는 책과 월간 독서 달력, 최근 활동까지 나의 모든 독서 현황을 한눈에 살펴보는 홈 대시보드입니다.',
+  },
+  {
+    selector: '[data-tour="nav-library"]',
+    badge: '메뉴 안내 2/4',
+    title: '📚 서재',
+    description:
+      '내 서재와 구성원 전체 서재를 탭으로 나누어 마우스 휠로 넘겨보는 인터랙티브 서가입니다. 등록된 도서의 진도와 세부 기록을 확인할 수 있습니다.',
+  },
+  {
+    selector: '[data-tour="nav-feed"]',
+    badge: '메뉴 안내 3/4',
+    title: '💬 피드',
+    description:
+      '함께 참여하는 모든 구성원들이 남긴 독서일지와 문장수집이 시간순으로 모이는 실시간 소통 타임라인입니다. 마음에 드는 기록에 공감(❤️)도 남길 수 있습니다.',
+  },
+  {
+    selector: '[data-tour="nav-dex"]',
+    badge: '메뉴 안내 4/4',
+    title: '🐾 도감',
+    description:
+      '마지막 페이지까지 완독(100%)한 책들의 표지만 모아보는 나만의 독서 완독 컬렉션 갤러리입니다. 표지를 누르면 언제든 감상문을 다시 꺼내볼 수 있습니다.',
   },
   {
     selector: '[data-tour="header-utils"]',
-    badge: '환경 & 로그',
+    badge: '환경 & 설정',
     title: '개발로그 & 앱 설정',
     description:
-      '개발로그에서 v1.0~v4.4 포스트잇 히스토리를 넘겨보고, 설정에서 테마, AI 엔진(Gemini / EXAONE), 검색 엔진을 바꿀 수 있어요.',
+      '개발로그에서 버전별 업데이트 히스토리를 확인하고, 설정에서 테마와 Google Gemini / LG EXAONE AI 모델을 맞춤 설정할 수 있습니다.',
   },
   {
     selector: null,
-    badge: '홍보 & 사용 영상',
+    badge: '소개 & 가이드 영상',
     title: '🎬 북튜닝 소개 및 사용 가이드 영상',
-    description: '북튜닝의 핵심 활용 흐름을 짧은 영상으로 만나보세요.',
+    description: '북튜닝의 핵심 가치와 활용 흐름을 담은 소개 영상을 시청해 보세요.',
     isVideoStep: true,
   },
 ];

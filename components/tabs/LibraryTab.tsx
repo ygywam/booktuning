@@ -132,9 +132,9 @@ export default function LibraryTab({
       <div className="tab-header-card panel">
         <div className="tab-header-top">
           <div>
-            <h2>📚 {scope === 'my' ? '내 서재' : '구성원 전체 서재'}</h2>
+            <h2>📚 서재</h2>
             <p className="subtitle">
-              마우스 휠이나 드래그로 책을 넘기고, 책에 마우스를 올리면 Dock처럼 크게 확대됩니다.
+              공유 서재에 등록된 도서를 둘러보고 상세 기록을 열람할 수 있습니다.
             </p>
           </div>
           <button type="button" className="ghost-button tab-add-btn" onClick={onOpenManualBook}>
@@ -143,74 +143,72 @@ export default function LibraryTab({
         </div>
 
         {/* [내 서재] / [구성원 전체 서재] 탭 스위처 */}
-        <div className="flex items-center gap-2 pt-2 border-t border-amber-900/10">
+        <div className="lib-scope-row">
           <button
             type="button"
+            className={`lib-scope-btn ${scope === 'my' ? 'active' : ''}`}
             onClick={() => {
               setScope('my');
               setHoveredIdx(null);
             }}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition ${
-              scope === 'my'
-                ? 'bg-amber-800 text-white shadow-sm'
-                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-            }`}
           >
             내 서재 ({myBooks.length})
           </button>
           <button
             type="button"
+            className={`lib-scope-btn ${scope === 'community' ? 'active' : ''}`}
             onClick={() => {
               setScope('community');
               setHoveredIdx(null);
             }}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition ${
-              scope === 'community'
-                ? 'bg-amber-800 text-white shadow-sm'
-                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-            }`}
           >
             구성원 전체 서재 ({books.length})
           </button>
         </div>
 
         {/* 필터 & 검색 툴바 */}
-        <div className="tab-filters-row">
-          <div className="tab-filter-pills">
-            {(
-              [
-                { id: 'all', label: '전체' },
-                { id: 'reading', label: '읽는 중' },
-                { id: 'done', label: '완독' },
-              ] as const
-            ).map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                className={`tab-filter-pill ${statusFilter === f.id ? 'is-active' : ''}`}
-                onClick={() => setStatusFilter(f.id)}
-              >
-                {f.label}
-              </button>
-            ))}
+        <div className="filter-bar lib-filter-bar">
+          <div className="filter-group">
+            <button
+              type="button"
+              className={`filter-btn ${statusFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setStatusFilter('all')}
+            >
+              전체
+            </button>
+            <button
+              type="button"
+              className={`filter-btn ${statusFilter === 'reading' ? 'active' : ''}`}
+              onClick={() => setStatusFilter('reading')}
+            >
+              읽는 중
+            </button>
+            <button
+              type="button"
+              className={`filter-btn ${statusFilter === 'done' ? 'active' : ''}`}
+              onClick={() => setStatusFilter('done')}
+            >
+              완독
+            </button>
           </div>
 
-          <div className="tab-search-sort">
+          <div className="lib-search-sort">
             <input
               type="text"
               placeholder="제목, 저자, 닉네임 검색..."
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              className="tab-search-input"
+              className="lib-keyword-input"
             />
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="tab-sort-select"
+              className="lib-sort-select"
+              aria-label="정렬 기준"
             >
               <option value="latest">최신 등록순</option>
-              <option value="progress">진도율 높은순</option>
-              <option value="title">도서명 가나다순</option>
+              <option value="progress">진도율순</option>
+              <option value="title">도서명순</option>
             </select>
           </div>
         </div>
@@ -260,8 +258,8 @@ export default function LibraryTab({
                   )}
                 </>
               ) : (
-                <span className="library-dock-hint">
-                  총 {displayedBooks.length}권 · 마우스 휠 또는 좌우 화살표로 서재를 넘겨보세요
+                <span className="library-dock-hint font-bold text-stone-600">
+                  총 {displayedBooks.length}권
                 </span>
               )}
             </div>

@@ -76,6 +76,7 @@ export default function BottomNav({ activeTab, onChange, counts }: BottomNavProp
           <button
             key={item.id}
             type="button"
+            data-tour={`nav-${item.id}`}
             onClick={() => onChange(item.id)}
             className={`mobile-nav-btn ${isActive ? 'active' : ''}`}
             aria-current={isActive ? 'page' : undefined}

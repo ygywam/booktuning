@@ -798,34 +798,40 @@ export default function Home() {
           <nav className="desktop-top-nav" data-tour="main-nav" aria-label="메인 탭 네비게이션">
             <button
               type="button"
+              data-tour="nav-home"
               className={`desktop-nav-btn ${activeTab === 'home' ? 'active' : ''}`}
               onClick={() => setActiveTab('home')}
             >
-              <span>🏠 홈 (대시보드)</span>
+              <span>🏠 홈</span>
             </button>
             <button
               type="button"
+              data-tour="nav-library"
               className={`desktop-nav-btn ${activeTab === 'library' ? 'active' : ''}`}
               onClick={() => setActiveTab('library')}
             >
-              <span>📚 서재 (Dock 캐러셀)</span>
-              <span className="text-[11px] bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded-full ml-1">
-                {myBooks.length}
-              </span>
+              <span>📚 서재</span>
+              {books.length > 0 && (
+                <span className={`desktop-nav-badge ${activeTab === 'library' ? 'active' : ''}`}>
+                  {myBooks.length > 0 ? myBooks.length : books.length}
+                </span>
+              )}
             </button>
             <button
               type="button"
+              data-tour="nav-feed"
               className={`desktop-nav-btn ${activeTab === 'feed' ? 'active' : ''}`}
               onClick={() => setActiveTab('feed')}
             >
-              <span>💬 피드 (타임라인)</span>
+              <span>💬 피드</span>
             </button>
             <button
               type="button"
+              data-tour="nav-dex"
               className={`desktop-nav-btn ${activeTab === 'dex' ? 'active' : ''}`}
               onClick={() => setActiveTab('dex')}
             >
-              <span>🐾 도감 (완독 표지)</span>
+              <span>🐾 도감</span>
             </button>
           </nav>
 
