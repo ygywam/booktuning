@@ -5,6 +5,7 @@ import {
   AiProvider,
   AiStatusInfo,
   Book,
+  Classroom,
   InsightLog,
   MainTabId,
   ReadingLog,
@@ -19,6 +20,8 @@ import DexTab from '@/components/tabs/DexTab';
 import BottomNav from '@/components/BottomNav';
 import SpotlightTutorial from '@/components/SpotlightTutorial';
 import AppInfoModals from '@/components/AppInfoModals';
+import ClassManageModal from '@/components/ClassManageModal';
+import { ArrowUp } from 'lucide-react';
 
 export default function Home() {
   const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME?.trim() || '';
@@ -33,6 +36,13 @@ export default function Home() {
   const [theme, setTheme] = useState('theme-forest');
   const [aiProvider, setAiProvider] = useState<AiProvider>('gemini');
   const [aiStatus, setAiStatus] = useState<AiStatusInfo | null>(null);
+
+  // 1-1. 학급(Classroom) 상태
+  const [currentClass, setCurrentClass] = useState<Classroom | null>(null);
+  const [showClassModal, setShowClassModal] = useState(false);
+
+  // 1-2. 스크롤 탑 플로팅 버튼 상태
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // 2. 4대 메인 탭 상태 (기본: 홈)
   const [activeTab, setActiveTab] = useState<MainTabId>('home');
@@ -126,6 +136,14 @@ export default function Home() {
           setNickname(parsedUser.nickname || savedNickname);
           setPin(parsedUser.pin || '');
           setHasEnteredLibrary(true);
+
+          if (parsedUser.classId) {
+            setCurrentClass({
+              id: parsedUser.classId,
+              name: parsedUser.className || '소속 학급',
+              code: parsedUser.classCode || '',
+            });
+          }
         } catch {
           if (savedNickname) setNickname(savedNickname);
         }
@@ -173,11 +191,26 @@ export default function Home() {
     fetchAiStatus();
   }, []);
 
+  // 우측 하단 플로팅 '맨 위로 가기' 스크롤 감지
+  useEffect(() => {
+    const onScroll = () => {
+      setShowScrollTop(window.scrollY > 240);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // 도서 목록 및 글로벌 타임라인 데이터 패치
-  const fetchBooks = async () => {
+  const fetchBooks = async (targetClassId?: string) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/books');
+      const cId = targetClassId || (user?.role === 'student' ? user?.classId : currentClass?.id);
+      const url = cId ? `/api/books?classId=${encodeURIComponent(cId)}` : '/api/books';
+      const res = await fetch(url);
       const data = await res.json();
       if (data.ok) {
         setBooks(data.books || []);
@@ -717,6 +750,30 @@ export default function Home() {
 
   const activeAiName = aiProvider === 'exaone' ? 'LG EXAONE' : 'Google Gemini';
 
+  // 새 로그인/회원가입 성공 핸들러
+  const handleLoginSuccess = (authenticatedUser: User) => {
+    setUser(authenticatedUser);
+    setNickname(authenticatedUser.nickname);
+    setPin(authenticatedUser.pin);
+    setHasEnteredLibrary(true);
+
+    localStorage.setItem('app_user', JSON.stringify(authenticatedUser));
+    localStorage.setItem('app_nickname', authenticatedUser.nickname);
+    localStorage.setItem('guest_entered', 'false');
+
+    if (authenticatedUser.classId) {
+      const cls = {
+        id: authenticatedUser.classId,
+        name: authenticatedUser.className || '소속 학급',
+        code: authenticatedUser.classCode || '',
+      };
+      setCurrentClass(cls);
+      fetchBooks(cls.id);
+    } else {
+      fetchBooks();
+    }
+  };
+
   return (
     <>
       {!authChecked ? (
@@ -725,7 +782,7 @@ export default function Home() {
         <LandingGate
           initialNickname={nickname}
           initialPin={pin}
-          onEnterWithProfile={authenticateUser}
+          onLoginSuccess={handleLoginSuccess}
           onBrowseGuest={handleBrowseAsGuest}
           onOpenTutorial={() => setShowTutorialModal(true)}
           onOpenSettings={() => setShowSettingsModal(true)}
@@ -751,6 +808,41 @@ export default function Home() {
                   ? `${nickname}님과 함께 읽고 기록하며 삶의 주파수를 맞춰가는 ${schoolName ? `${schoolName} ` : ''}공유 서재입니다.`
                   : `책을 읽고 기록하며 내 삶과 생각의 주파수를 맞춰가는 ${schoolName ? `${schoolName} ` : ''}공간입니다.`}
               </p>
+
+              {/* 학급 상태 배너 */}
+              {user && (
+                <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs bg-white/80 border border-stone-200 shadow-sm">
+                  {user.role === 'teacher' ? (
+                    <>
+                      <span className="font-bold text-amber-900">👩‍🏫 교사 모드</span>
+                      <span className="text-stone-300">|</span>
+                      <span className="text-stone-700">
+                        선택 학급: <strong>{currentClass?.name || '학급을 선택해 주세요'}</strong>
+                      </span>
+                      {currentClass?.code && (
+                        <span className="font-mono text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded text-[11px] font-bold">
+                          초대코드: {currentClass.code}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowClassModal(true)}
+                        className="text-amber-800 underline font-bold ml-1 hover:text-amber-950"
+                      >
+                        [학급 관리]
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-bold text-emerald-800">🧑‍🎓 학생 서재</span>
+                      <span className="text-stone-300">|</span>
+                      <span className="text-stone-700">
+                        소속: <strong>{user.className || '우리 반'}</strong> {user.studentNumber ? `(${user.studentNumber})` : ''}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="header-nav-row" data-tour="header-utils">
@@ -762,6 +854,17 @@ export default function Home() {
               >
                 📖 사용법
               </button>
+
+              {user?.role === 'teacher' && (
+                <button
+                  type="button"
+                  className="ghost-button"
+                  style={{ borderColor: 'var(--accent)', color: 'var(--accent-dark)', fontWeight: 700 }}
+                  onClick={() => setShowClassModal(true)}
+                >
+                  🏫 학급 관리
+                </button>
+              )}
 
               {nickname || user ? (
                 <>
@@ -935,16 +1038,17 @@ export default function Home() {
             }}
           />
 
-          {/* 5. 노션 바로가기 버튼 & 푸터 */}
-          {process.env.NEXT_PUBLIC_NOTION_DATABASE_URL && (
+          {/* 5. 노션 바로가기 버튼 (교사에게만 안전 노출) & 푸터 */}
+          {user?.role === 'teacher' && process.env.NEXT_PUBLIC_NOTION_DATABASE_URL && (
             <div className="notion-outlink-container">
               <a
                 href={process.env.NEXT_PUBLIC_NOTION_DATABASE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="notion-outlink-btn"
+                title="선생님 전용 노션 원본 데이터베이스 열기"
               >
-                📑 노션 데이터베이스 열기 ↗
+                📑 노션 데이터베이스 열기 ↗ (교사 전용)
               </a>
             </div>
           )}
@@ -1621,6 +1725,35 @@ export default function Home() {
         showCopyrightModal={showCopyrightModal}
         setShowCopyrightModal={setShowCopyrightModal}
       />
+
+      {/* 6-6. 교사 전용 학급 관리 & 학생 PIN 리셋 모달 */}
+      {user?.role === 'teacher' && (
+        <ClassManageModal
+          isOpen={showClassModal}
+          onClose={() => setShowClassModal(false)}
+          teacherId={user.id}
+          teacherName={user.nickname}
+          currentClassId={currentClass?.id}
+          onSelectClass={(cls) => {
+            setCurrentClass(cls);
+            fetchBooks(cls.id);
+          }}
+        />
+      )}
+
+      {/* 7. 우측 하단 플로팅 '맨 위로 가기(Scroll To Top)' 버튼 */}
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          aria-label="맨 위로 가기"
+          className="scroll-to-top-btn"
+          title="맨 위로 이동"
+        >
+          <ArrowUp className="w-4 h-4" />
+          <span>TOP</span>
+        </button>
+      )}
     </>
   );
 }

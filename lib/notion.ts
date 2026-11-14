@@ -12,6 +12,55 @@ export const BOOK_DB_ID = process.env.NOTION_BOOK_DB_ID || '';
 export const LOG_DB_ID = process.env.NOTION_LOG_DB_ID || '';
 export const INSIGHT_DB_ID = process.env.NOTION_INSIGHT_DB_ID || '';
 export const USER_DB_ID = process.env.NOTION_USER_DB_ID || '';
+export const CLASS_DB_ID = process.env.NOTION_CLASS_DB_ID || '';
+
+/**
+ * 초대코드를 기반으로 학급 DB에서 학급(Classroom) 정보를 조회하는 헬퍼 함수
+ */
+export async function findClassByCode(code: string): Promise<{ id: string; name: string; code: string; teacherId?: string } | null> {
+  if (!CLASS_DB_ID || !code) return null;
+  try {
+    const res = await notion.databases.query({
+      database_id: CLASS_DB_ID,
+      filter: {
+        property: '초대코드',
+        rich_text: {
+          equals: code.trim().toUpperCase(),
+        },
+      },
+      page_size: 1,
+    });
+    if (res.results && res.results.length > 0) {
+      const page: any = res.results[0];
+      const name = page.properties['학급명']?.title?.[0]?.plain_text || '학급';
+      const cCode = page.properties['초대코드']?.rich_text?.[0]?.plain_text || code;
+      const teacherId = page.properties['담당교사']?.relation?.[0]?.id;
+      return { id: page.id, name, code: cCode, teacherId };
+    }
+  } catch (err: any) {
+    console.warn(`학급(코드: ${code}) 조회 실패:`, err.message);
+  }
+  return null;
+}
+
+/**
+ * 학급 ID로 학급 정보 조회
+ */
+export async function findClassById(classId: string): Promise<{ id: string; name: string; code: string; teacherId?: string } | null> {
+  if (!classId) return null;
+  try {
+    const page: any = await notion.pages.retrieve({ page_id: classId });
+    if (page && !page.archived) {
+      const name = page.properties['학급명']?.title?.[0]?.plain_text || '학급';
+      const code = page.properties['초대코드']?.rich_text?.[0]?.plain_text || '';
+      const teacherId = page.properties['담당교사']?.relation?.[0]?.id;
+      return { id: page.id, name, code, teacherId };
+    }
+  } catch (err: any) {
+    console.warn(`학급(ID: ${classId}) 조회 실패:`, err.message);
+  }
+  return null;
+}
 
 /**
  * 닉네임을 기반으로 사용자 DB에서 Notion Page ID를 조회하는 헬퍼 함수

@@ -1,7 +1,24 @@
+export type UserRole = 'teacher' | 'student';
+
+export interface Classroom {
+  id: string; // 노션 학급 페이지 ID
+  name: string; // 학급명 (예: 3학년 2반 독서방)
+  code: string; // 6자리 고유 초대코드 (예: SFL-302)
+  teacherId?: string;
+  teacherName?: string;
+  studentIds?: string[];
+  createdAt?: string;
+}
+
 export interface User {
   id: string; // 노션 사용자 페이지 ID
   nickname: string;
   pin: string;
+  role: UserRole;
+  studentNumber?: string; // 학생 학번 (예: 30215), 교사는 선택사항
+  classId?: string; // 소속 학급 ID
+  className?: string; // 소속 학급명
+  classCode?: string; // 소속 학급 초대코드
   bio?: string;
   createdAt?: string;
 }
@@ -16,6 +33,7 @@ export interface Book {
   description: string;
   nickname: string;
   userId?: string;
+  classId?: string; // 소속 학급 ID (데이터 격리 기준)
   coverUrl: string;
   likes: number;
   likedUsers: string[];
@@ -36,6 +54,7 @@ export interface ReadingLog {
   note: string;
   nickname: string;
   userId?: string;
+  classId?: string;
   createdAt?: string;
 }
 
@@ -47,6 +66,7 @@ export interface InsightLog {
   imageUrl?: string;
   nickname: string;
   userId?: string;
+  classId?: string;
   readDate: string;
   createdAt?: string;
 }
@@ -60,6 +80,7 @@ export interface TimelineItem {
   imageUrl?: string;
   nickname: string;
   userId?: string;
+  classId?: string;
   createdAt?: string;
 }
 

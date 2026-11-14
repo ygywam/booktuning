@@ -4,11 +4,14 @@ import { notion, BOOK_DB_ID, LOG_DB_ID, INSIGHT_DB_ID } from '../../../lib/notio
 export const dynamic = 'force-dynamic';
 
 // 1. 도서 목록 조회 (GET) - 진도율, 최근 쪽수, 좋아요 집계 롤업 포함
-export async function GET() {
+export async function GET(request: Request) {
   try {
     if (!BOOK_DB_ID) {
       return NextResponse.json({ ok: false, error: 'NOTION_BOOK_DB_ID가 설정되지 않았습니다.' }, { status: 400 });
     }
+
+    const { searchParams } = new URL(request.url);
+    const targetClassId = searchParams.get('classId');
 
     // 도서 목록 가져오기 (아카이브되지 않은 도서들)
     const bookResponse = await notion.databases.query({
@@ -86,6 +89,8 @@ export async function GET() {
 
       // 사용자 relation 유연 조회 (사용자 또는 [북튜닝] 사용자 DB)
       const userRel = props['사용자']?.relation || props['[북튜닝] 사용자 DB']?.relation || [];
+      const classRel = props['소속학급']?.relation || props['학급']?.relation || [];
+      const bookClassId = classRel[0]?.id || '';
 
       return {
         bookId: page.id,
@@ -97,6 +102,7 @@ export async function GET() {
         description: props['책소개']?.rich_text[0]?.plain_text || '',
         nickname: props['기록자']?.rich_text[0]?.plain_text || '익명',
         userId: userRel[0]?.id || '',
+        classId: bookClassId,
         coverUrl: page.cover?.external?.url || props['표지']?.files[0]?.external?.url || '',
         likes: likesCount,
         likedUsers,
@@ -108,7 +114,12 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ ok: true, books });
+    // 학급 격리 필터: targetClassId가 명시되어 있고, 책들에 classId가 설정된 경우 해당 학급 도서만 필터링
+    const filteredBooks = targetClassId && targetClassId !== 'all'
+      ? books.filter((b) => !b.classId || b.classId === targetClassId)
+      : books;
+
+    return NextResponse.json({ ok: true, books: filteredBooks });
   } catch (error: any) {
     console.error('도서 목록 로딩 실패:', error);
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
@@ -145,6 +156,10 @@ export async function POST(request: Request) {
       payload.properties['[북튜닝] 사용자 DB'] = { relation: [{ id: book.userId }] };
     }
 
+    if (book.classId) {
+      payload.properties['소속학급'] = { relation: [{ id: book.classId }] };
+    }
+
     if (book.coverUrl && String(book.coverUrl).startsWith('http')) {
       payload.properties['표지'] = { files: [{ name: 'cover.jpg', type: 'external', external: { url: book.coverUrl } }] };
       payload.cover = { type: 'external', external: { url: book.coverUrl } };
@@ -154,18 +169,28 @@ export async function POST(request: Request) {
     try {
       response = await notion.pages.create(payload);
     } catch (createErr: any) {
-      // '[북튜닝] 사용자 DB'가 아니라 '사용자'일 경우 재시도
-      if (payload.properties['[북튜닝] 사용자 DB']) {
-        delete payload.properties['[북튜닝] 사용자 DB'];
-        payload.properties['사용자'] = { relation: [{ id: book.userId }] };
+      // '소속학급' 프로퍼티가 아직 없을 경우 제외 후 재시도
+      if (payload.properties['소속학급']) {
+        delete payload.properties['소속학급'];
         try {
           response = await notion.pages.create(payload);
-        } catch (e) {
-          delete payload.properties['사용자'];
-          response = await notion.pages.create(payload);
+        } catch {}
+      }
+
+      if (!response) {
+        // '[북튜닝] 사용자 DB'가 아니라 '사용자'일 경우 재시도
+        if (payload.properties['[북튜닝] 사용자 DB']) {
+          delete payload.properties['[북튜닝] 사용자 DB'];
+          payload.properties['사용자'] = { relation: [{ id: book.userId }] };
+          try {
+            response = await notion.pages.create(payload);
+          } catch (e) {
+            delete payload.properties['사용자'];
+            response = await notion.pages.create(payload);
+          }
+        } else {
+          throw createErr;
         }
-      } else {
-        throw createErr;
       }
     }
 

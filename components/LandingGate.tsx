@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Sparkles, Camera, ArrowRight, Settings, HelpCircle } from 'lucide-react';
+import { BookOpen, Sparkles, Camera, ArrowRight, Settings, HelpCircle, UserCheck, ShieldCheck, UserPlus, KeyRound } from 'lucide-react';
 import { WebGLShader } from '@/components/ui/web-gl-shader';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
+import { User, UserRole } from '@/lib/types';
 
 interface LandingGateProps {
   initialNickname?: string;
   initialPin?: string;
-  onEnterWithProfile: (nickname: string, pin: string) => Promise<boolean>;
+  onLoginSuccess: (user: User) => void;
   onBrowseGuest: () => void;
   onOpenTutorial: () => void;
   onOpenSettings: () => void;
@@ -16,13 +17,12 @@ interface LandingGateProps {
   onOpenCopyright: () => void;
 }
 
-/**
- * WebGLShader 파동 배경 기반 'Tuning Your Life' 입장 화면
- */
+type GateMode = 'login' | 'register';
+
 export function LandingGate({
   initialNickname = '',
   initialPin = '',
-  onEnterWithProfile,
+  onLoginSuccess,
   onBrowseGuest,
   onOpenTutorial,
   onOpenSettings,
@@ -30,29 +30,103 @@ export function LandingGate({
   onOpenCopyright,
 }: LandingGateProps) {
   const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME?.trim() || '';
-  const [nickInput, setNickInput] = useState(initialNickname);
+
+  // 1. 모드 상태: 'login'(로그인) vs 'register'(새 계정 만들기)
+  const [mode, setMode] = useState<GateMode>('login');
+
+  // 2. 역할 서브탭: 'student'(학생) vs 'teacher'(교사)
+  const [role, setRole] = useState<UserRole>('student');
+
+  // 3. 입력 필드 상태
+  const [nameInput, setNameInput] = useState(initialNickname);
   const [pinInput, setPinInput] = useState(initialPin);
+  const [studentNumInput, setStudentNumInput] = useState('');
+  const [classCodeInput, setClassCodeInput] = useState('');
+  const [teacherSecretInput, setTeacherSecretInput] = useState('');
+
   const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    setNickInput(initialNickname);
+    setNameInput(initialNickname);
     setPinInput(initialPin);
   }, [initialNickname, initialPin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nickInput.trim()) {
-      alert('활동할 닉네임을 입력해 주세요.');
+    setErrorMsg('');
+
+    const cleanName = nameInput.trim();
+    const cleanPin = pinInput.trim();
+
+    if (!cleanName) {
+      setErrorMsg('이름을 입력해 주세요.');
       return;
     }
-    if (!pinInput.trim() || pinInput.trim().length < 4) {
-      alert('본인 확인용 4자리 숫자 비밀번호(PIN)를 입력해 주세요.');
+    if (!cleanPin || cleanPin.length < 4) {
+      setErrorMsg('4자리 숫자 비밀번호(PIN)를 입력해 주세요.');
       return;
+    }
+
+    if (mode === 'register') {
+      if (role === 'student') {
+        if (!studentNumInput.trim()) {
+          setErrorMsg('학번을 입력해 주세요 (예: 30215).');
+          return;
+        }
+        if (!classCodeInput.trim()) {
+          setErrorMsg('선생님께 받은 학급 인증코드(6자리)를 입력해 주세요.');
+          return;
+        }
+      } else if (role === 'teacher') {
+        if (!teacherSecretInput.trim()) {
+          setErrorMsg('선생님 전용 교사 인증코드를 입력해 주세요.');
+          return;
+        }
+      }
+    } else if (mode === 'login') {
+      if (role === 'student' && !studentNumInput.trim()) {
+        setErrorMsg('학번을 입력해 주세요.');
+        return;
+      }
     }
 
     setSubmitting(true);
     try {
-      await onEnterWithProfile(nickInput.trim(), pinInput.trim());
+      const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
+      const payload: any = {
+        role,
+        name: cleanName,
+        pin: cleanPin,
+      };
+
+      if (role === 'student') {
+        payload.studentNumber = studentNumInput.trim();
+        if (mode === 'register') {
+          payload.classCode = classCodeInput.trim().toUpperCase();
+        }
+      } else if (role === 'teacher' && mode === 'register') {
+        payload.teacherSecretCode = teacherSecretInput.trim();
+      }
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setErrorMsg(data.error || '인증 처리에 실패했습니다. 다시 확인해 주세요.');
+        return;
+      }
+
+      // 인증 성공
+      if (data.user) {
+        onLoginSuccess(data.user);
+      }
+    } catch (err: any) {
+      setErrorMsg('서버와 통신하는 도중 오류가 발생했습니다. 네트워크를 확인해 주세요.');
     } finally {
       setSubmitting(false);
     }
@@ -82,7 +156,7 @@ export function LandingGate({
               {schoolName ? `${schoolName} BOOK TUNING` : 'BOOK TUNING'}
             </span>
             <span className="text-[11px] text-white/55">
-              {schoolName ? `${schoolName} 노션 독서 서재` : '노션 공유 독서 아틀리에'} · v4.4
+              {schoolName ? `${schoolName} 독서 서재` : '노션 공유 독서 아틀리에'} · v4.4
             </span>
           </div>
         </div>
@@ -109,152 +183,230 @@ export function LandingGate({
         </div>
       </header>
 
-      {/* 중앙 히어로 & 입장 카드 프레임 */}
-      <div className="relative z-10 w-full px-4 py-8 flex items-center justify-center">
-        <div className="relative border border-white/20 p-2 w-full mx-auto max-w-3xl rounded-2xl bg-black/30 backdrop-blur-sm shadow-2xl">
-          <main className="relative border border-white/15 rounded-xl px-4 py-8 sm:px-8 sm:py-10 overflow-hidden bg-black/35">
-            {/* 라이브 동기화 상태 표시 */}
-            <div className="mb-4 flex items-center justify-center gap-2 text-center">
-              <span className="relative flex h-2.5 w-2.5 shrink-0 items-center justify-center">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
-              <p className="text-[11px] sm:text-xs font-semibold tracking-wide text-emerald-400">
-                노션 실시간 동기화 · 누구나 닉네임으로 참여하는 공유 서재
-              </p>
-            </div>
-
-            {/* 메인 슬로건 (요청 문구: Tuning Your Life) */}
-            <h1 className="mb-3 text-white text-center text-4xl sm:text-6xl md:text-[clamp(3rem,6.5vw,4.75rem)] font-extrabold tracking-tighter leading-[1.06]">
+      {/* 중앙 히어로 & 입장 프레임 */}
+      <div className="relative z-10 w-full px-4 py-6 sm:py-8 flex items-center justify-center">
+        <div className="relative border border-white/20 p-2 w-full mx-auto max-w-2xl rounded-2xl bg-black/30 backdrop-blur-sm shadow-2xl">
+          <main className="relative border border-white/15 rounded-xl px-4 py-6 sm:px-8 sm:py-8 overflow-hidden bg-black/40">
+            {/* 상단 타이틀 */}
+            <h1 className="mb-2 text-white text-center text-3xl sm:text-5xl font-extrabold tracking-tighter leading-tight">
               Tuning Your Life
             </h1>
-
-            {/* 서브 카피 (의미 있는 독서로 삶을 기록하세요) */}
-            <p className="text-white/90 px-2 text-center text-base sm:text-lg font-semibold">
-              의미 있는 독서로 삶을 기록하세요
-            </p>
-            <p className="text-white/65 px-2 mt-2 text-center text-xs sm:text-sm max-w-xl mx-auto leading-relaxed">
-              문장과 독서 진도를 차곡차곡 남기는 공유 서재 공간입니다.{' '}
-              <br className="hidden sm:inline" />
-              회원가입 절차 없이 닉네임과 4자리 PIN으로 노션 서재가 즉시 생성·연결됩니다.
+            <p className="text-white/80 text-center text-xs sm:text-sm font-medium mb-5">
+              {schoolName ? `${schoolName} ` : ''}독서로 생각의 주파수를 맞춰가는 공간
             </p>
 
-            {/* 핵심 기능 필 배지 */}
-            <div className="mt-4 sm:mt-5 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] sm:text-[11px] font-medium text-white/85">
-                <BookOpen className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-300" />
-                실시간 노션 공유 서재
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] sm:text-[11px] font-medium text-white/85">
-                <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-sky-300" />
-                Gemini · EXAONE AI 감상문
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] sm:text-[11px] font-medium text-white/85">
-                <Camera className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-300" />
-                페이지 사진 OCR
-              </span>
+            {/* 1. 상단 2대 모드 탭 스위처: [로그인] ↔ [새 계정 만들기] */}
+            <div className="max-w-md mx-auto mb-4 p-1 rounded-xl bg-white/10 border border-white/15 backdrop-blur-md grid grid-cols-2 gap-1 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setErrorMsg('');
+                }}
+                className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
+                  mode === 'login'
+                    ? 'bg-white text-stone-900 shadow-md'
+                    : 'text-white/70 hover:text-white'
+                }`}
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>로그인</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('register');
+                  setErrorMsg('');
+                }}
+                className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition ${
+                  mode === 'register'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'text-white/70 hover:text-white'
+                }`}
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>새 계정 만들기</span>
+              </button>
             </div>
 
-            {/* 닉네임 & 4자리 PIN 입장 폼 (고대비 밝은 크림 카드 + 리퀴드 글래스 입장 버튼) */}
-            <form onSubmit={handleSubmit} className="mt-7 max-w-md mx-auto">
-              <div className="rounded-2xl bg-[#fdfbf7]/95 text-[#221d18] p-5 shadow-xl border border-[#e8ded2]">
-                {initialNickname && (
-                  <div className="mb-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-900 font-medium">
-                    최근 접속 프로필(<strong>{initialNickname}</strong>)이 불러와졌습니다. 바로 입장하거나 다른 닉네임으로 전환할 수 있습니다.
+            {/* 2. 학생 / 교사 역할 서브탭 스위처 */}
+            <div className="max-w-md mx-auto mb-5 flex items-center justify-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setRole('student');
+                  setErrorMsg('');
+                }}
+                className={`px-4 py-1.5 rounded-full border transition flex items-center gap-1.5 font-semibold ${
+                  role === 'student'
+                    ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
+                    : 'border-white/20 text-white/60 hover:text-white'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>🧑‍🎓 학생 {mode === 'register' ? '가입' : ''}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRole('teacher');
+                  setErrorMsg('');
+                }}
+                className={`px-4 py-1.5 rounded-full border transition flex items-center gap-1.5 font-semibold ${
+                  role === 'teacher'
+                    ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+                    : 'border-white/20 text-white/60 hover:text-white'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>👩‍🏫 교사 {mode === 'register' ? '가입' : ''}</span>
+              </button>
+            </div>
+
+            {/* 3. 로그인 / 가입 폼 카드 */}
+            <form onSubmit={handleSubmit} className="max-w-md mx-auto">
+              <div className="rounded-2xl bg-[#fdfbf7] text-[#221d18] p-5 shadow-2xl border border-[#e8ded2]">
+                {/* 에러 메시지 배너 */}
+                {errorMsg && (
+                  <div className="mb-3.5 rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700 font-semibold leading-relaxed">
+                    🚨 {errorMsg}
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                  <label className="block text-xs font-bold text-[#4a4036]">
-                    활동할 닉네임
+                {/* 모드별 안내 캡션 */}
+                <div className="mb-3 text-xs text-stone-500 border-b border-stone-200 pb-2">
+                  {mode === 'login' ? (
+                    role === 'student' ? (
+                      <span>📌 <strong>학번</strong>과 <strong>이름</strong>, <strong>4자리 PIN</strong>으로 로그인합니다.</span>
+                    ) : (
+                      <span>📌 선생님의 <strong>이름</strong>과 <strong>비밀번호(PIN)</strong>로 로그인합니다.</span>
+                    )
+                  ) : role === 'student' ? (
+                    <span>✨ 선생님께 안내받은 <strong>학급 코드</strong>와 <strong>학번</strong>을 입력해 주세요.</span>
+                  ) : (
+                    <span>🔐 선생님 전용 <strong>교사 인증코드</strong>를 입력해 주세요.</span>
+                  )}
+                </div>
+
+                <div className="space-y-3 text-left">
+                  {/* [학생 가입 시] 학급 인증코드 입력란 */}
+                  {mode === 'register' && role === 'student' && (
+                    <label className="block text-xs font-bold text-stone-700">
+                      학급 인증코드 (6자리) <span className="text-red-500">*</span>
+                      <input
+                        type="text"
+                        placeholder="예: BT-7821 (선생님이 알려주신 코드)"
+                        value={classCodeInput}
+                        onChange={(e) => setClassCodeInput(e.target.value.toUpperCase())}
+                        className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 font-mono tracking-wider focus:border-emerald-600 focus:outline-none"
+                        required
+                      />
+                    </label>
+                  )}
+
+                  {/* [교사 가입 시] 교사 인증코드 입력란 */}
+                  {mode === 'register' && role === 'teacher' && (
+                    <label className="block text-xs font-bold text-stone-700">
+                      교사 마스터 인증코드 <span className="text-red-500">*</span>
+                      <input
+                        type="password"
+                        placeholder="선생님들 간 공유된 인증키 입력"
+                        value={teacherSecretInput}
+                        onChange={(e) => setTeacherSecretInput(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-amber-600 focus:outline-none"
+                        required
+                      />
+                    </label>
+                  )}
+
+                  {/* [학생 공통] 학번 입력란 (가입 & 로그인) */}
+                  {role === 'student' && (
+                    <label className="block text-xs font-bold text-stone-700">
+                      학번 <span className="text-red-500">*</span>
+                      <input
+                        type="text"
+                        placeholder="예: 30215 (3학년 2반 15번)"
+                        value={studentNumInput}
+                        onChange={(e) => setStudentNumInput(e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none"
+                        required
+                      />
+                    </label>
+                  )}
+
+                  {/* 이름 입력란 */}
+                  <label className="block text-xs font-bold text-stone-700">
+                    이름 <span className="text-red-500">*</span>
                     <input
                       type="text"
-                      placeholder="예: 책벌레 (2~10자)"
-                      value={nickInput}
-                      onChange={(e) => setNickInput(e.target.value)}
-                      className="mt-1.5 w-full rounded-xl border border-[#d8cbbd] bg-white px-3.5 py-2.5 text-sm text-[#221d18] placeholder:text-[#9c9083] focus:border-[#965327] focus:outline-none"
+                      placeholder={role === 'student' ? '예: 김민수' : '선생님 성함 (예: 조용희)'}
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none"
                       required
                     />
                   </label>
-                  <label className="block text-xs font-bold text-[#4a4036]">
-                    4자리 PIN (동명이인 구분)
+
+                  {/* 4자리 PIN 비밀번호 */}
+                  <label className="block text-xs font-bold text-stone-700">
+                    비밀번호 (4자리 PIN) <span className="text-red-500">*</span>
                     <input
                       type="password"
                       maxLength={4}
-                      inputMode="numeric"
                       placeholder="숫자 4자리"
                       value={pinInput}
-                      onChange={(e) => setPinInput(e.target.value)}
-                      className="mt-1.5 w-full rounded-xl border border-[#d8cbbd] bg-white px-3.5 py-2.5 text-sm text-[#221d18] placeholder:text-[#9c9083] focus:border-[#965327] focus:outline-none"
+                      onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+                      className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 tracking-widest placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none"
                       required
                     />
                   </label>
                 </div>
 
-                <p className="mt-3 text-[11px] leading-relaxed text-[#6c5f53]">
-                  ※ 처음 쓰는 닉네임이면 노션 사용자 DB에 새 계정이 자동 등록되며, 기존 닉네임은 입력한 PIN으로 본인 확인 후 입장합니다.
-                </p>
-              </div>
+                {/* 제출 버튼 */}
+                <div className="mt-5">
+                  <LiquidButton
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full justify-center !py-3 text-sm font-bold shadow-lg"
+                  >
+                    <span>
+                      {submitting
+                        ? '확인 중...'
+                        : mode === 'register'
+                        ? (role === 'student' ? '🧑‍🎓 우리 반 서재 참여하기' : '👩‍🏫 교사 등록 및 입장')
+                        : '📖 서재로 들어가기'}
+                    </span>
+                    <ArrowRight className="w-4 h-4 ml-1.5" />
+                  </LiquidButton>
+                </div>
 
-              {/* LiquidButton 메인 CTA */}
-              <div className="mt-6 flex flex-col items-center gap-3">
-                <LiquidButton
-                  type="submit"
-                  size="xl"
-                  disabled={submitting}
-                  className="text-white border border-white/40 rounded-full px-10 font-bold text-base shadow-lg"
-                >
-                  <span>{submitting ? '서재 연결 중...' : '서재 입장하기'}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </LiquidButton>
-
-                <button
-                  type="button"
-                  data-slot="button"
-                  onClick={onBrowseGuest}
-                  className="bg-transparent text-xs font-medium text-white/75 underline-offset-4 hover:text-white hover:underline py-1 px-2"
-                >
-                  계정 입력 없이 커뮤니티 서재 먼저 둘러보기 →
-                </button>
+                {/* 게스트 둘러보기 버튼 */}
+                <div className="mt-3 text-center">
+                  <button
+                    type="button"
+                    onClick={onBrowseGuest}
+                    className="text-xs text-stone-500 hover:text-stone-800 underline transition"
+                  >
+                    👀 로그인 없이 둘러보기 (게스트 모드)
+                  </button>
+                </div>
               </div>
             </form>
           </main>
         </div>
       </div>
 
-      {/* 하단 운영 & 약관 푸터 */}
-      <footer className="relative z-10 w-full max-w-5xl mx-auto px-4 pb-6 pt-2 text-center text-xs text-white/60 space-y-1.5">
-        <p>
-          운영: <strong className="text-white/85">조용희</strong>(서울외고, 활동명: 기록조율사 ·{' '}
-          <a
-            href="https://www.instagram.com/record_tuner/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-amber-300 hover:underline"
-          >
-            @record_tuner
-          </a>
-          )
-        </p>
-        <div className="flex items-center justify-center gap-4 text-[11px]">
-          <button
-            type="button"
-            data-slot="button"
-            onClick={onOpenPrivacy}
-            className="bg-transparent p-0 text-white/60 hover:text-white underline-offset-2 hover:underline font-normal"
-          >
-            개인정보처리방침
-          </button>
-          <span className="text-white/25">|</span>
-          <button
-            type="button"
-            data-slot="button"
-            onClick={onOpenCopyright}
-            className="bg-transparent p-0 text-white/60 hover:text-white underline-offset-2 hover:underline font-normal"
-          >
-            저작권 및 이용 안내
-          </button>
-        </div>
+      {/* 하단 푸터 바 */}
+      <footer className="relative z-10 w-full py-4 px-4 text-center text-xs text-white/50 border-t border-white/10 flex flex-wrap items-center justify-center gap-3">
+        <span>© {new Date().getFullYear()} {schoolName || '북튜닝'}. All rights reserved.</span>
+        <span>·</span>
+        <button type="button" onClick={onOpenPrivacy} className="hover:text-white underline">
+          개인정보처리방침
+        </button>
+        <span>·</span>
+        <button type="button" onClick={onOpenCopyright} className="hover:text-white underline">
+          저작권 및 레퍼런스 안내
+        </button>
       </footer>
     </div>
   );
