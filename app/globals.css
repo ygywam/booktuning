@@ -3154,3 +3154,23 @@ p {
     font-size: 11px;
   }
 }
+
+/* iOS Safari 및 모바일 브라우저 input[type="date"] 가로 폭 튀어나옴 방지 */
+input[type="date"] {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  min-height: 40px;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  line-height: normal;
+  padding: 0;
+  margin: 0;
+}
+

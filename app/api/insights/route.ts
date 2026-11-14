@@ -4,13 +4,15 @@ import { notion, INSIGHT_DB_ID, findUserIdByNickname, uploadImageToNotion } from
 // 1. 문장수집 등록 (POST)
 export async function POST(request: Request) {
   try {
-    const { bookNotionPageId, page, notes, nickname, userId, imageUrl, readDate } = await request.json();
+    const { bookNotionPageId, page, notes, nickname, userId, imageUrl, readDate, classId } = await request.json();
 
     if (!INSIGHT_DB_ID || !bookNotionPageId) {
       return NextResponse.json({ ok: false, error: 'INSIGHT_DB_ID 또는 책 ID가 누락되었습니다.' }, { status: 400 });
     }
 
-    // 보안 검증: 본인이 등록한 도서에만 문장 수집 가능
+    let resolvedClassId = classId || '';
+
+    // 보안 검증: 본인이 등록한 도서에만 문장 수집 가능 & 도서의 소속학급 계승
     try {
       const bookPage: any = await notion.pages.retrieve({ page_id: bookNotionPageId });
       const bookOwner = bookPage.properties['기록자']?.rich_text[0]?.plain_text || '';
@@ -20,8 +22,12 @@ export async function POST(request: Request) {
           error: `본인이 등록한 도서에만 문장을 수집할 수 있습니다. (도서 등록자: ${bookOwner})`,
         }, { status: 403 });
       }
+      const bookClassRel = bookPage.properties['소속학급']?.relation || [];
+      if (!resolvedClassId && bookClassRel.length > 0) {
+        resolvedClassId = bookClassRel[0].id;
+      }
     } catch (e: any) {
-      console.warn('도서 소유자 확인 오류:', e.message);
+      console.warn('도서 정보 확인 오류:', e.message);
     }
 
     const targetDate = readDate || new Date().toISOString().split('T')[0];
@@ -38,6 +44,10 @@ export async function POST(request: Request) {
 
     if (nickname) {
       payload.properties['기록자'] = { rich_text: [{ text: { content: nickname } }] };
+    }
+
+    if (resolvedClassId) {
+      payload.properties['소속학급'] = { relation: [{ id: resolvedClassId }] };
     }
 
     // 사용자 DB relation 연결: userId가 없으면 nickname으로 자동 조회
@@ -86,7 +96,18 @@ export async function POST(request: Request) {
     try {
       response = await notion.pages.create(payload);
     } catch (createErr: any) {
-      // '[북튜닝] 사용자 DB' 속성명이 아닌 '사용자' 속성명일 경우 폴백
+      // 1) '소속학급' 속성이 아직 노션 DB에 없는 경우 제거 후 재시도
+      if (payload.properties['소속학급']) {
+        delete payload.properties['소속학급'];
+        try {
+          response = await notion.pages.create(payload);
+          return NextResponse.json({ ok: true, pageLogId: response.id });
+        } catch (retryErr: any) {
+          // 2) 사용자 DB 속성명 폴백으로 이어짐
+        }
+      }
+
+      // 2) '[북튜닝] 사용자 DB' 속성명이 아닌 '사용자' 속성명일 경우 폴백
       if (payload.properties['[북튜닝] 사용자 DB']) {
         delete payload.properties['[북튜닝] 사용자 DB'];
         payload.properties['사용자'] = { relation: [{ id: targetUserId }] };

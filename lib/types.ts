@@ -55,6 +55,8 @@ export interface ReadingLog {
   nickname: string;
   userId?: string;
   classId?: string;
+  likes?: number;
+  likedUsers?: string[];
   createdAt?: string;
 }
 
@@ -67,6 +69,8 @@ export interface InsightLog {
   nickname: string;
   userId?: string;
   classId?: string;
+  likes?: number;
+  likedUsers?: string[];
   readDate: string;
   createdAt?: string;
 }
@@ -81,6 +85,8 @@ export interface TimelineItem {
   nickname: string;
   userId?: string;
   classId?: string;
+  likes?: number;
+  likedUsers?: string[];
   createdAt?: string;
 }
 

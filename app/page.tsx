@@ -234,9 +234,21 @@ export default function Home() {
     }
   };
 
-  const fetchGlobalTimeline = async () => {
+  const fetchGlobalTimeline = async (targetClassId?: string, overrideRole?: string) => {
     try {
-      const res = await fetch('/api/timeline?bookId=all');
+      const activeRole = overrideRole || user?.role || 'student';
+      let cId = '';
+      if (activeRole === 'student') {
+        cId = user?.classId || '';
+      } else {
+        cId = targetClassId !== undefined ? targetClassId : (currentClass?.id || 'teachers');
+      }
+
+      const params = new URLSearchParams({ bookId: 'all' });
+      if (cId) params.set('classId', cId);
+      if (activeRole) params.set('role', activeRole);
+
+      const res = await fetch(`/api/timeline?${params.toString()}`);
       const data = await res.json();
       if (data.ok) {
         setAllLogs(data.readingLogs || []);
@@ -618,6 +630,7 @@ export default function Home() {
           imageUrl: inlineLogImageUrl,
           nickname: nickname.trim(),
           userId: user?.id,
+          classId: targetBook.classId || user?.classId || currentClass?.id || '',
         }),
       });
       const data = await res.json();
@@ -666,6 +679,7 @@ export default function Home() {
           imageUrl: inlineInsightImageUrl,
           nickname: nickname.trim(),
           userId: user?.id,
+          classId: targetBook.classId || user?.classId || currentClass?.id || '',
           readDate: inlineInsightDate || new Date().toISOString().split('T')[0],
         }),
       });
@@ -687,6 +701,133 @@ export default function Home() {
       alert('문장 수집 저장 통신 오류');
     } finally {
       setSubmittingInlineInsight(false);
+    }
+  };
+
+  // 도서 공감(좋아요) 토글
+  const handleToggleBookLike = async (book: Book) => {
+    if (!nickname.trim()) {
+      alert('공감을 누르려면 로그인이 필요합니다.');
+      return;
+    }
+    const bookId = book.bookId || book.notionPageId;
+    if (!bookId) return;
+
+    const myNick = nickname.trim();
+    const isCurrentlyLiked = (book.likedUsers || []).includes(myNick);
+
+    // 낙관적 업데이트
+    setBooks((prev) =>
+      prev.map((b) => {
+        if ((b.bookId || b.notionPageId) === bookId) {
+          const newLikedUsers = isCurrentlyLiked
+            ? (b.likedUsers || []).filter((u) => u !== myNick)
+            : [...(b.likedUsers || []), myNick];
+          return {
+            ...b,
+            likes: newLikedUsers.length,
+            likedUsers: newLikedUsers,
+          };
+        }
+        return b;
+      })
+    );
+
+    try {
+      const res = await fetch('/api/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookId, nickname: myNick }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        alert(data.error || '공감 저장 실패');
+        fetchBooks();
+      }
+    } catch (err) {
+      console.error('도서 공감 오류:', err);
+      fetchBooks();
+    }
+  };
+
+  // 피드(독서일지 / 문장수집) 공감(좋아요) 토글
+  const handleToggleFeedItemLike = async (rawId: string, type: 'log' | 'insight') => {
+    if (!nickname.trim()) {
+      alert('공감을 누르려면 로그인이 필요합니다.');
+      return;
+    }
+    const myNick = nickname.trim();
+
+    // 낙관적 업데이트: allLogs 및 allInsights 갱신
+    if (type === 'log') {
+      setAllLogs((prev) =>
+        prev.map((l) => {
+          if (l.logId === rawId) {
+            const isCurrentlyLiked = (l.likedUsers || []).includes(myNick);
+            const newLikedUsers = isCurrentlyLiked
+              ? (l.likedUsers || []).filter((u) => u !== myNick)
+              : [...(l.likedUsers || []), myNick];
+            return {
+              ...l,
+              likes: newLikedUsers.length,
+              likedUsers: newLikedUsers,
+            };
+          }
+          return l;
+        })
+      );
+    } else {
+      setAllInsights((prev) =>
+        prev.map((ins) => {
+          if (ins.pageLogId === rawId) {
+            const isCurrentlyLiked = (ins.likedUsers || []).includes(myNick);
+            const newLikedUsers = isCurrentlyLiked
+              ? (ins.likedUsers || []).filter((u) => u !== myNick)
+              : [...(ins.likedUsers || []), myNick];
+            return {
+              ...ins,
+              likes: newLikedUsers.length,
+              likedUsers: newLikedUsers,
+            };
+          }
+          return ins;
+        })
+      );
+    }
+
+    // 도서 상세 모달의 타임라인 목록도 낙관적 갱신
+    setTimelineItems((prev) =>
+      prev.map((item) => {
+        if (item.id === rawId) {
+          const isCurrentlyLiked = (item.likedUsers || []).includes(myNick);
+          const newLikedUsers = isCurrentlyLiked
+            ? (item.likedUsers || []).filter((u) => u !== myNick)
+            : [...(item.likedUsers || []), myNick];
+          return {
+            ...item,
+            likes: newLikedUsers.length,
+            likedUsers: newLikedUsers,
+          };
+        }
+        return item;
+      })
+    );
+
+    try {
+      const res = await fetch('/api/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetId: rawId, nickname: myNick }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        alert(data.error || '피드 공감 저장 실패');
+        fetchGlobalTimeline();
+        if (selectedBook) fetchTimeline(selectedBook.bookId || selectedBook.notionPageId);
+      }
+    } catch (err) {
+      console.error('피드 공감 오류:', err);
+      fetchGlobalTimeline();
     }
   };
 
@@ -845,6 +986,7 @@ export default function Home() {
                           onClick={() => {
                             setCurrentClass(null);
                             fetchBooks('teachers');
+                            fetchGlobalTimeline('teachers');
                           }}
                           className="!bg-amber-100 hover:!bg-amber-200 !text-amber-900 border !border-amber-300 text-[11px] font-bold py-1 px-2.5 rounded-lg transition cursor-pointer"
                         >
@@ -1049,6 +1191,7 @@ export default function Home() {
                 }
                 onSelectBook={openDetail}
                 onOpenManualBook={handleOpenManualBook}
+                onToggleBookLike={handleToggleBookLike}
               />
             )}
 
@@ -1058,7 +1201,9 @@ export default function Home() {
                 logs={allLogs}
                 insights={allInsights}
                 loading={loading}
+                currentUserNickname={nickname}
                 onSelectBook={openDetail}
+                onToggleLike={handleToggleFeedItemLike}
               />
             )}
 
@@ -1347,6 +1492,21 @@ export default function Home() {
               </div>
 
               <div className="flex items-center gap-2 flex-shrink-0">
+                {/* 도서 공감(좋아요) 토글 버튼 */}
+                <button
+                  type="button"
+                  onClick={() => handleToggleBookLike(activeDetailBook)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                    (activeDetailBook.likedUsers || []).includes(nickname.trim())
+                      ? '!bg-rose-50 !text-rose-600 !border-rose-200 shadow-xs'
+                      : '!bg-stone-50 hover:!bg-rose-50 !text-stone-600 hover:!text-rose-600 !border-stone-300'
+                  }`}
+                  title={(activeDetailBook.likedUsers || []).includes(nickname.trim()) ? '공감 취소' : '공감하기'}
+                >
+                  <span>{(activeDetailBook.likedUsers || []).includes(nickname.trim()) ? '❤️' : '🤍'}</span>
+                  <span>공감 {activeDetailBook.likes || 0}</span>
+                </button>
+
                 {checkIsOwner(activeDetailBook) && (
                   <button
                     type="button"
@@ -1457,19 +1617,24 @@ export default function Home() {
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-full">
-                        <label className="block text-xs font-bold text-stone-700 w-full max-w-full overflow-hidden">
-                          읽은 날짜
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-full min-w-0">
+                        <div className="w-full max-w-full min-w-0">
+                          <label className="block text-xs font-bold text-stone-700 mb-1">
+                            읽은 날짜
+                          </label>
                           <input
                             type="date"
                             value={inlineLogDate}
                             onChange={(e) => setInlineLogDate(e.target.value)}
-                            className="mt-1 w-full max-w-full box-border rounded-xl px-3 py-2 text-xs sm:text-sm border border-stone-300 bg-white"
+                            style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}
+                            className="block w-full max-w-full rounded-xl px-3 py-2 text-xs sm:text-sm border border-stone-300 bg-white"
                             required
                           />
-                        </label>
-                        <label className="block text-xs font-bold text-stone-700 w-full max-w-full overflow-hidden">
-                          현재까지 누적 페이지
+                        </div>
+                        <div className="w-full max-w-full min-w-0">
+                          <label className="block text-xs font-bold text-stone-700 mb-1">
+                            현재까지 누적 페이지
+                          </label>
                           <input
                             type="number"
                             min="0"
@@ -1477,10 +1642,11 @@ export default function Home() {
                             placeholder={`예: ${(activeDetailBook.readPages || 0) + 10}`}
                             value={inlineLogPage}
                             onChange={(e) => setInlineLogPage(e.target.value)}
-                            className="mt-1 w-full max-w-full box-border rounded-xl px-3 py-2 text-xs sm:text-sm border border-stone-300 bg-white"
+                            style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}
+                            className="block w-full max-w-full rounded-xl px-3 py-2 text-xs sm:text-sm border border-stone-300 bg-white"
                             required
                           />
-                        </label>
+                        </div>
                       </div>
 
                       <label className="block text-xs font-bold text-stone-700 w-full max-w-full">
@@ -1525,27 +1691,33 @@ export default function Home() {
                         <span className="text-[11px] text-stone-500 font-medium">본문 사진 첨부 지원</span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-full">
-                        <label className="block text-xs font-bold text-stone-700 w-full max-w-full overflow-hidden">
-                          수집 날짜
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-full min-w-0">
+                        <div className="w-full max-w-full min-w-0">
+                          <label className="block text-xs font-bold text-stone-700 mb-1">
+                            수집 날짜
+                          </label>
                           <input
                             type="date"
                             value={inlineInsightDate}
                             onChange={(e) => setInlineInsightDate(e.target.value)}
-                            className="mt-1 w-full max-w-full box-border rounded-xl px-3 py-2 text-xs sm:text-sm border border-stone-300 bg-white"
+                            style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}
+                            className="block w-full max-w-full rounded-xl px-3 py-2 text-xs sm:text-sm border border-stone-300 bg-white"
                             required
                           />
-                        </label>
-                        <label className="block text-xs font-bold text-stone-700 w-full max-w-full overflow-hidden">
-                          해당 페이지 번호
+                        </div>
+                        <div className="w-full max-w-full min-w-0">
+                          <label className="block text-xs font-bold text-stone-700 mb-1">
+                            해당 페이지 번호
+                          </label>
                           <input
                             type="text"
                             placeholder="예: 42 또는 105-108"
                             value={inlineInsightPage}
                             onChange={(e) => setInlineInsightPage(e.target.value)}
-                            className="mt-1 w-full max-w-full box-border rounded-xl px-3 py-2 text-xs sm:text-sm border border-stone-300 bg-white"
+                            style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}
+                            className="block w-full max-w-full rounded-xl px-3 py-2 text-xs sm:text-sm border border-stone-300 bg-white"
                           />
-                        </label>
+                        </div>
                       </div>
 
                       <div className="p-3 bg-white rounded-xl border border-emerald-200 space-y-2">
@@ -1685,6 +1857,26 @@ export default function Home() {
                               <img src={item.imageUrl} alt="첨부 사진" className="w-full h-auto max-h-48 object-cover" />
                             </div>
                           )}
+
+                          {/* 상세 모달 타임라인 아이템 공감(좋아요) 액션 */}
+                          <div className="mt-2.5 pt-1.5 border-t border-stone-100 flex items-center justify-between">
+                            <span className="text-[10px] text-stone-400">
+                              {item.type === 'insight' ? '💡 문장수집' : '📅 독서일지'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFeedItemLike(item.id, item.type)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold transition cursor-pointer ${
+                                (item.likedUsers || []).includes(nickname.trim())
+                                  ? '!bg-rose-50 !text-rose-600 border !border-rose-200'
+                                  : '!bg-stone-50 hover:!bg-rose-50 !text-stone-500 hover:!text-rose-600 border !border-stone-200'
+                              }`}
+                              title={(item.likedUsers || []).includes(nickname.trim()) ? '공감 취소' : '공감하기'}
+                            >
+                              <span>{(item.likedUsers || []).includes(nickname.trim()) ? '❤️' : '🤍'}</span>
+                              <span>공감 {item.likes || 0}</span>
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -1800,6 +1992,7 @@ export default function Home() {
           onSelectClass={(cls) => {
             setCurrentClass(cls);
             fetchBooks(cls.id);
+            fetchGlobalTimeline(cls.id);
           }}
         />
       )}

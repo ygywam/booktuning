@@ -11,6 +11,7 @@ interface LibraryTabProps {
   communityLabel?: string;
   onSelectBook: (book: Book) => void;
   onOpenManualBook: () => void;
+  onToggleBookLike?: (book: Book) => void;
 }
 
 /**
@@ -24,6 +25,7 @@ export default function LibraryTab({
   communityLabel,
   onSelectBook,
   onOpenManualBook,
+  onToggleBookLike,
 }: LibraryTabProps) {
   const [scope, setScope] = useState<'my' | 'community'>(() => (myBooks && myBooks.length > 0 ? 'my' : 'community'));
   const [statusFilter, setStatusFilter] = useState<'all' | 'reading' | 'done'>('all');
@@ -316,6 +318,25 @@ export default function LibraryTab({
                     ) : book.nickname ? (
                       <div className="author-badge">{book.nickname}</div>
                     ) : null}
+
+                    {/* 도서 공감(좋아요) 뱃지 버튼 */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleBookLike?.(book);
+                      }}
+                      className={`absolute bottom-2 right-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold shadow-sm transition cursor-pointer backdrop-blur-xs ${
+                        currentUserNickname && (book.likedUsers || []).includes(currentUserNickname.trim())
+                          ? '!bg-rose-50/95 !text-rose-600 border !border-rose-200'
+                          : '!bg-white/90 hover:!bg-rose-50 !text-stone-600 hover:!text-rose-600 border !border-stone-200'
+                      }`}
+                      title={currentUserNickname && (book.likedUsers || []).includes(currentUserNickname.trim()) ? '공감 취소' : '공감하기'}
+                    >
+                      <span>{currentUserNickname && (book.likedUsers || []).includes(currentUserNickname.trim()) ? '❤️' : '🤍'}</span>
+                      <span>{book.likes || 0}</span>
+                    </button>
+
                     {book.coverUrl ? (
                       <img src={book.coverUrl} alt={book.title} draggable={false} />
                     ) : (
