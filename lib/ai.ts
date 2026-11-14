@@ -57,6 +57,19 @@ async function callGeminiText(prompt: string): Promise<string> {
 
   if (!res.ok) {
     const errText = await res.text();
+    if (
+      res.status === 402 ||
+      errText.includes('prepayment credits are depleted') ||
+      errText.includes('RESOURCE_EXHAUSTED')
+    ) {
+      throw new Error(
+        'Google AI Studio 선불 크레딧이 소진되었습니다 (HTTP 402).\n\n' +
+        '해결 방법:\n' +
+        '1. Google AI Studio(https://aistudio.google.com/app/apikey) 접속\n' +
+        '2. 결제 계정(Billing)이 연결되지 않은 완전 무료(Free of charge) 프로젝트를 선택하거나 신규 생성\n' +
+        '3. 새 무료 API 키를 발급받아 Vercel 환경변수 GEMINI_API_KEY에 교체 등록 후 재배포해 주세요.'
+      );
+    }
     throw new Error(`Gemini API 통신 오류 (${res.status}): ${errText}`);
   }
 
@@ -70,7 +83,9 @@ async function callGeminiText(prompt: string): Promise<string> {
 async function callExaoneText(prompt: string): Promise<string> {
   const exaoneKey = process.env.EXAONE_API_KEY;
   if (!exaoneKey) {
-    throw new Error('서버 환경변수에 EXAONE_API_KEY가 설정되지 않았습니다.');
+    throw new Error(
+      'LG EXAONE API 키(EXAONE_API_KEY)가 Vercel 환경변수에 설정되지 않았습니다.\n설정에서 Google Gemini를 선택하시거나 Vercel에 EXAONE_API_KEY를 등록해 주세요.'
+    );
   }
 
   const url = `${EXAONE_API_BASE_URL}/chat/completions`;
@@ -89,6 +104,7 @@ async function callExaoneText(prompt: string): Promise<string> {
         },
       ],
       temperature: 0.7,
+      max_tokens: 2048,
       stream: false,
     }),
   });
@@ -97,6 +113,12 @@ async function callExaoneText(prompt: string): Promise<string> {
     const errText = await res.text();
     if (res.status === 429) {
       throw new Error('EXAONE API 호출 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.');
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('EXAONE API 인증 실패: 유효하지 않은 API 키이거나 접근 권한이 없습니다.');
+    }
+    if (res.status === 404) {
+      throw new Error(`EXAONE API 엔드포인트 또는 모델(${AI_MODELS.exaone})을 찾을 수 없습니다. (404)`);
     }
     throw new Error(`EXAONE API 통신 오류 (${res.status}): ${errText}`);
   }
@@ -160,6 +182,15 @@ async function callGeminiVisionOcr(params: {
 
   if (!res.ok) {
     const errText = await res.text();
+    if (
+      res.status === 402 ||
+      errText.includes('prepayment credits are depleted') ||
+      errText.includes('RESOURCE_EXHAUSTED')
+    ) {
+      throw new Error(
+        'Google AI Studio 선불 크레딧 소진(402): 결제 계정 없는 완전 무료 티어 새 API 키를 Vercel GEMINI_API_KEY에 등록해 주세요.'
+      );
+    }
     throw new Error(`Gemini OCR 통신 오류 (${res.status}): ${errText}`);
   }
 

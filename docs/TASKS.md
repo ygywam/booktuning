@@ -172,3 +172,10 @@
 - [x] `fetchBooks` 및 `fetchGlobalTimeline`에서 `targetClassId` 우선 적용으로 학생/교사 학급 데이터 패치 안정화
 - [x] 학급 서재 도서 가시성 확립: 해당 학급 ID로 등록된 도서(학생 등록 책 + 교사가 학급에서 학생과 함께 보려고 등록한 책)를 학급 서재에 100% 통합 노출
 - [x] `v4.4.5` 버전 bump 및 동적 buildId(`build-v4.4.5-timestamp`) 적용 완료
+
+## 20단계: 도서 관리 모달 복원·교사 관리 권한 부여·Gemini 402 친절 에러·LG EXAONE 방어 (완료)
+- [x] 도서 상세 모달 내 `[ ⚙️ 도서 관리 ]` 모달 JSX 복원: 도서명, 저자, 출판사, 전체 쪽수, 표지 URL, 책 소개 수정 폼 및 도서 삭제 UI 완벽 복원
+- [x] 교사 관리 권한(`canManageBook`) 도입: 본인 도서뿐 아니라 학급 지도 교사(`role === 'teacher'`)도 학생 도서의 잘못된 쪽수 수정 및 삭제가 가능하도록 권한 체계 정비
+- [x] Google Gemini 402(선불 크레딧 소진) 에러 친절 가이드 제공: 원시 JSON 팝업 대신 무료 티어(Free Tier) 새 API 키 발급 및 Vercel 등록 방법을 명확히 안내
+- [x] LG EXAONE AI 안정성 보강: Vercel 서버리스 타임아웃 방지(`maxDuration = 60`), `max_tokens: 2048`, 미연결 시 경고 및 클릭 방어 로직 적용
+- [x] `v4.4.6` 버전 bump 및 동적 buildId(`build-v4.4.6-timestamp`) 적용 완료

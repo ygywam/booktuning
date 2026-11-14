@@ -118,7 +118,13 @@ export default function AppInfoModals({
 
                   <button
                     type="button"
-                    onClick={() => onChangeAiProvider('exaone')}
+                    onClick={() => {
+                      if (!aiStatus?.exaoneConfigured) {
+                        alert('⚠️ LG EXAONE API 키(EXAONE_API_KEY)가 Vercel 환경변수에 아직 등록되지 않았습니다.\n\n현재 기본 제공되는 Google Gemini를 선택해 주시면 즉시 감상문과 OCR을 이용하실 수 있습니다.');
+                        return;
+                      }
+                      onChangeAiProvider('exaone');
+                    }}
                     className={`p-2.5 text-left rounded-xl border transition flex flex-col justify-between ${
                       aiProvider === 'exaone'
                         ? '!border-emerald-600 !bg-emerald-50 !text-emerald-950 shadow-sm ring-2 ring-emerald-500'
@@ -133,8 +139,8 @@ export default function AppInfoModals({
                             연결됨
                           </span>
                         ) : (
-                          <span className="text-[10px] bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded">
-                            미설정
+                          <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded font-bold">
+                            미연결 (키 필요)
                           </span>
                         )}
                       </div>

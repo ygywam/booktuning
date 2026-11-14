@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { notion, LOG_DB_ID, INSIGHT_DB_ID } from '../../../lib/notion';
 import { generateTextWithAI, getAiDisplayName } from '../../../lib/ai';
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   try {
     const {

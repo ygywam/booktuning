@@ -299,6 +299,13 @@ export default function Home() {
     return false;
   };
 
+  // 도서 관리(수정/삭제) 권한 확인 (본인 도서이거나 교사 관리자일 때)
+  const canManageBook = (book: Book | null) => {
+    if (!book) return false;
+    if (user?.role === 'teacher') return true;
+    return checkIsOwner(book);
+  };
+
   // 8. 사용자 인증 및 로그인 (LandingGate / 모달 연동)
   const authenticateUser = async (targetNickname: string, targetPin: string): Promise<boolean> => {
     try {
@@ -459,15 +466,17 @@ export default function Home() {
   // 도서 수정 / 삭제
   const handleUpdateBook = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBook) return;
-    if (!checkIsOwner(selectedBook)) return alert('본인이 등록한 도서만 수정할 수 있습니다.');
+    const targetBook = selectedBook || activeDetailBook;
+    if (!targetBook) return;
+    if (!canManageBook(targetBook)) return alert('본인이 등록한 도서 또는 교사 권한으로만 수정할 수 있습니다.');
 
+    const targetBookId = targetBook.bookId || targetBook.notionPageId;
     try {
       const res = await fetch('/api/books', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bookId: selectedBook.bookId,
+          bookId: targetBookId,
           title: manualTitle.trim(),
           author: manualAuthor.trim(),
           publisher: manualPublisher.trim(),
@@ -479,8 +488,21 @@ export default function Home() {
       });
       const data = await res.json();
       if (data.ok) {
-        alert('도서 정보가 수정되었습니다.');
+        alert('도서 정보가 성공적으로 수정되었습니다! (노션 동기화 완료)');
         setShowEditBookModal(false);
+        setSelectedBook((prev) =>
+          prev
+            ? {
+                ...prev,
+                title: manualTitle.trim(),
+                author: manualAuthor.trim(),
+                publisher: manualPublisher.trim(),
+                totalPages: Number(manualPages) || 0,
+                coverUrl: manualCover.trim(),
+                description: manualDesc.trim(),
+              }
+            : null
+        );
         await Promise.all([fetchBooks(), fetchGlobalTimeline()]);
       } else alert(`수정 실패: ${data.error}`);
     } catch (err) {
@@ -489,12 +511,17 @@ export default function Home() {
   };
 
   const handleDeleteBook = async (bookId: string) => {
-    if (!confirm('이 도서를 서재에서 완전히 삭제하시겠습니까?\n노션 데이터베이스에서도 삭제(아카이브)됩니다.')) return;
+    const targetBook = selectedBook || activeDetailBook;
+    if (!targetBook) return;
+    if (!canManageBook(targetBook)) return alert('본인이 등록한 도서 또는 교사 권한으로만 삭제할 수 있습니다.');
+
+    if (!confirm('이 도서를 서재에서 완전히 삭제(노션 휴지통 아카이브)하시겠습니까?\n※ 연관된 모든 독서일지와 문장수집도 노션에서 함께 삭제됩니다.')) return;
     try {
-      const res = await fetch(`/api/books?bookId=${bookId}&nickname=${encodeURIComponent(nickname.trim())}`, { method: 'DELETE' });
+      const targetBookId = bookId || targetBook.bookId || targetBook.notionPageId;
+      const res = await fetch(`/api/books?bookId=${targetBookId}&nickname=${encodeURIComponent(nickname.trim())}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.ok) {
-        alert('도서가 삭제되었습니다.');
+        alert('도서가 성공적으로 삭제되었습니다.');
         setShowEditBookModal(false);
         setShowDetailModal(false);
         setSelectedBook(null);
@@ -848,16 +875,23 @@ export default function Home() {
 
   // AI 1인칭 독서 감상문 초안 생성
   const handleGenerateAiReport = async () => {
-    if (!selectedBook) return;
+    const targetBook = activeDetailBook || selectedBook;
+    if (!targetBook) return;
+
+    if (aiProvider === 'exaone' && !aiStatus?.exaoneConfigured) {
+      alert('⚠️ LG EXAONE API 키가 서버에 등록되지 않았습니다.\n\n[설정] 모달에서 Google Gemini를 선택해 주시거나 Vercel 환경변수에 EXAONE_API_KEY를 등록해 주세요.');
+      return;
+    }
+
     setAiLoading(true);
     try {
       const res = await fetch('/api/ai-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bookTitle: selectedBook.title,
-          author: selectedBook.author,
-          notionPageId: selectedBook.bookId || selectedBook.notionPageId,
+          bookTitle: targetBook.title,
+          author: targetBook.author,
+          notionPageId: targetBook.bookId || targetBook.notionPageId,
           aiProvider,
         }),
       });
@@ -866,12 +900,12 @@ export default function Home() {
         setAiReport(data.aiReport);
         setMyReport((prev) => (prev ? prev : data.aiReport));
         alert(`✨ ${data.providerName || 'AI'} 감상문 초안이 생성되었습니다!`);
-        fetchTimeline(selectedBook.bookId || selectedBook.notionPageId);
+        fetchTimeline(targetBook.bookId || targetBook.notionPageId);
       } else {
         alert(data.error || 'AI 감상문 생성 실패');
       }
-    } catch (err) {
-      alert('AI 서버 통신 오류');
+    } catch (err: any) {
+      alert(`AI 서버 통신 오류: ${err.message || '네트워크 상태를 확인해 주세요.'}`);
     } finally {
       setAiLoading(false);
     }
@@ -1526,18 +1560,18 @@ export default function Home() {
                   <span>공감 {activeDetailBook.likes || 0}</span>
                 </button>
 
-                {checkIsOwner(activeDetailBook) && (
+                {canManageBook(activeDetailBook) && (
                   <button
                     type="button"
                     className="ghost-button text-xs"
                     onClick={() => {
                       setSelectedBook(activeDetailBook);
-                      setManualTitle(activeDetailBook.title);
-                      setManualAuthor(activeDetailBook.author);
-                      setManualPublisher(activeDetailBook.publisher);
-                      setManualPages(activeDetailBook.totalPages);
-                      setManualDesc(activeDetailBook.description);
-                      setManualCover(activeDetailBook.coverUrl);
+                      setManualTitle(activeDetailBook.title || '');
+                      setManualAuthor(activeDetailBook.author || '');
+                      setManualPublisher(activeDetailBook.publisher || '');
+                      setManualPages(activeDetailBook.totalPages || 0);
+                      setManualDesc(activeDetailBook.description || '');
+                      setManualCover(activeDetailBook.coverUrl || '');
                       setShowEditBookModal(true);
                     }}
                   >
@@ -1969,6 +2003,123 @@ export default function Home() {
               </div>
             )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6-3. 도서 수정/삭제 모달 (서브 모달 z-index 10050) */}
+      {showEditBookModal && (selectedBook || activeDetailBook) && (
+        <div className="modal modal-sub" style={{ zIndex: 10050 }}>
+          <div className="modal-backdrop" onClick={() => setShowEditBookModal(false)} />
+          <div className="modal-card max-w-lg w-full">
+            <div className="section-title-row">
+              <div>
+                <h2 className="text-base font-bold text-stone-900">도서 정보 관리 및 수정</h2>
+                <p className="subtitle text-xs text-stone-500">{(selectedBook || activeDetailBook)?.title}</p>
+              </div>
+              <button
+                type="button"
+                className="ghost-button text-xs"
+                onClick={() => setShowEditBookModal(false)}
+              >
+                닫기
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateBook} className="space-y-3 mt-3">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">도서명 *</label>
+                <input
+                  type="text"
+                  value={manualTitle}
+                  onChange={(e) => setManualTitle(e.target.value)}
+                  required
+                  className="w-full text-xs p-2.5 rounded-xl border border-stone-300"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">저자</label>
+                  <input
+                    type="text"
+                    value={manualAuthor}
+                    onChange={(e) => setManualAuthor(e.target.value)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-stone-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">출판사</label>
+                  <input
+                    type="text"
+                    value={manualPublisher}
+                    onChange={(e) => setManualPublisher(e.target.value)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-stone-300"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">전체 쪽수(숫자)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={manualPages}
+                    onChange={(e) => setManualPages(Number(e.target.value))}
+                    className="w-full text-xs p-2.5 rounded-xl border border-stone-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">표지 이미지 URL</label>
+                  <input
+                    type="url"
+                    value={manualCover}
+                    onChange={(e) => setManualCover(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full text-xs p-2.5 rounded-xl border border-stone-300"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">책 소개</label>
+                <textarea
+                  rows={3}
+                  value={manualDesc}
+                  onChange={(e) => setManualDesc(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-xl border border-stone-300 leading-relaxed"
+                />
+              </div>
+
+              <div className="flex justify-between items-center mt-5 pt-3 border-t border-stone-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = selectedBook || activeDetailBook;
+                    if (target) handleDeleteBook(target.bookId || target.notionPageId);
+                  }}
+                  className="px-4 py-2 text-xs font-bold rounded-xl !bg-rose-600 hover:!bg-rose-700 !text-white transition cursor-pointer"
+                >
+                  🗑️ 도서 삭제
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditBookModal(false)}
+                    className="px-4 py-2 text-xs font-bold rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 transition"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 text-xs font-bold rounded-xl !bg-emerald-600 hover:!bg-emerald-700 !text-white transition cursor-pointer"
+                  >
+                    변경사항 저장
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
       )}
