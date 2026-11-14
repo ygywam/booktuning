@@ -90,66 +90,6 @@ export default function AppInfoModals({
                 </div>
               </div>
 
-              {/* AI 엔진 선택 (Gemini / EXAONE) */}
-              <div className="pt-2 border-t border-stone-200">
-                <label className="block text-xs font-bold text-stone-700 mb-2">🤖 AI 엔진 선택 (감상문 & OCR)</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onChangeAiProvider('gemini')}
-                    className={`p-2.5 text-left rounded-xl border transition flex flex-col justify-between ${
-                      aiProvider === 'gemini'
-                        ? '!border-emerald-600 !bg-emerald-50 !text-emerald-950 shadow-sm ring-2 ring-emerald-500'
-                        : '!border-stone-200 !bg-white !text-stone-700 hover:!bg-stone-50'
-                    }`}
-                  >
-                    <div>
-                      <div className="font-extrabold text-xs flex items-center justify-between">
-                        <span className="text-stone-900 font-extrabold">Google Gemini</span>
-                        {aiStatus?.geminiConfigured && (
-                          <span className="text-[10px] bg-emerald-200/90 text-emerald-950 px-1.5 py-0.5 rounded font-bold">
-                            연결됨
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-stone-600 mt-0.5 font-medium">멀티모달 감상문 + 이미지 OCR 표준</p>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!aiStatus?.exaoneConfigured) {
-                        alert('⚠️ LG EXAONE API 키(EXAONE_API_KEY)가 Vercel 환경변수에 아직 등록되지 않았습니다.\n\n현재 기본 제공되는 Google Gemini를 선택해 주시면 즉시 감상문과 OCR을 이용하실 수 있습니다.');
-                        return;
-                      }
-                      onChangeAiProvider('exaone');
-                    }}
-                    className={`p-2.5 text-left rounded-xl border transition flex flex-col justify-between ${
-                      aiProvider === 'exaone'
-                        ? '!border-emerald-600 !bg-emerald-50 !text-emerald-950 shadow-sm ring-2 ring-emerald-500'
-                        : '!border-stone-200 !bg-white !text-stone-700 hover:!bg-stone-50'
-                    }`}
-                  >
-                    <div>
-                      <div className="font-extrabold text-xs flex items-center justify-between">
-                        <span className="text-stone-900 font-extrabold">LG EXAONE</span>
-                        {aiStatus?.exaoneConfigured ? (
-                          <span className="text-[10px] bg-emerald-200/90 text-emerald-950 px-1.5 py-0.5 rounded font-bold">
-                            연결됨
-                          </span>
-                        ) : (
-                          <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded font-bold">
-                            미연결 (키 필요)
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-stone-600 mt-0.5 font-medium">K-EXAONE 2.5 한국어 특화 감상문</p>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
               {/* 도서 검색 엔진 선택 (알라딘/네이버 서비스 종료 고지 및 비활성화) */}
               <div className="pt-2 border-t border-stone-200">
                 <label className="block text-xs font-bold text-stone-700 mb-2">도서 검색 엔진</label>
@@ -274,7 +214,7 @@ export default function AppInfoModals({
                 <h4 className="font-bold text-stone-900 text-xs mb-1">2. 개인정보의 수집 및 이용 목적</h4>
                 <ul className="list-disc pl-4 space-y-1 text-stone-600">
                   <li><strong>스마트 서재 및 독서 현황 운영</strong>: 월별·기간별 독서 진도율 및 완독 통계 산출, 서재 Dock 및 도감 시각화, 독서일지·문장수집 타임라인 피드 제공.</li>
-                  <li><strong>AI 독서 보조 서비스 제공</strong>: 이용자가 수집한 기록을 기반으로 Google Gemini AI 또는 LG EXAONE AI를 통한 독서 감상문 초안 보조 및 책 본문 사진 텍스트(OCR) 추출.</li>
+                  <li><strong>AI 본문 텍스트 추출 서비스 제공</strong>: 이용자가 문장 수집 시 업로드한 책 사진에서 Google Gemini Vision AI를 통한 텍스트(OCR) 자동 추출.</li>
                 </ul>
               </div>
 
@@ -288,17 +228,14 @@ export default function AppInfoModals({
               <div>
                 <h4 className="font-bold text-stone-900 text-xs mb-1">4. 제3자 제공 및 취급 위탁</h4>
                 <p className="text-stone-600 mb-1">
-                  북튜닝은 이용자의 동의 없이 개인정보를 외부에 제공하지 않습니다. 다만, 서비스 운영 및 AI 분석을 위해 아래의 신뢰할 수 있는 글로벌 전문 인프라 API를 활용합니다:
+                  북튜닝은 이용자의 동의 없이 개인정보를 외부에 제공하지 않습니다. 다만, 서비스 운영을 위해 아래의 신뢰할 수 있는 전문 인프라 API를 활용합니다:
                 </p>
                 <ul className="list-disc pl-4 space-y-1 text-stone-600">
                   <li>
                     <strong>Notion Labs, Inc. (Notion API)</strong>: 노션 데이터베이스와의 실시간 양방향 데이터 동기화 및 기록 보존.
                   </li>
                   <li>
-                    <strong>Google LLC (Gemini API)</strong>: AI 독서 감상문 초안 및 사진 본문 OCR 추출 (구글 모델 학습에 이용되지 않는 전용 기업용 API 규격 준수).
-                  </li>
-                  <li>
-                    <strong>LG AI Research (EXAONE API)</strong>: 한국어 특화 AI 감상문 초안 생성 지원.
+                    <strong>Google LLC (Gemini API)</strong>: 책 본문 사진 OCR 텍스트 자동 추출 (구글 모델 학습에 이용되지 않는 전용 기업용 API 규격 준수).
                   </li>
                   <li>
                     <strong>Kakao Corp. & 국립중앙도서관</strong>: 도서 검색 시 입력된 도서명 및 ISBN을 바탕으로 표지 이미지와 총 페이지 수 서지정보 연동 (개인 식별정보 전송 없음).
@@ -428,8 +365,7 @@ export default function AppInfoModals({
                 <h4 className="font-bold text-stone-900 text-xs mb-1">4. 외부 API 서비스 이용약관 및 서비스 현황</h4>
                 <ul className="list-disc pl-4 space-y-0.5 text-stone-600">
                   <li><strong>Notion API</strong>: Notion Labs, Inc. API Terms 준수 (공유 서재 4대 DB 양방향 실시간 동기화)</li>
-                  <li><strong>Google Gemini API</strong>: Google APIs Terms of Service 준수 (멀티모달 1인칭 독서 감상문 및 사진 OCR)</li>
-                  <li><strong>LG EXAONE API</strong>: LG AI Research 이용약관 준수 (K-EXAONE 2.5 한국어 특화 감상문 초안 생성)</li>
+                  <li><strong>Google Gemini API</strong>: Google APIs Terms of Service 준수 (책 본문 사진 OCR 텍스트 자동 추출)</li>
                   <li><strong>카카오 도서 검색 API & 국립중앙도서관 서지정보 Open API</strong>: Kakao Corp. 오픈API 및 국립중앙도서관 공공데이터 이용조건 준수 (표지·서지정보 및 쪽수 자동 추출 하이브리드 표준 연동)</li>
                   <li><strong>알라딘 도서 검색 Open API</strong>: (주)알라딘커뮤니케이션 TTB API (2026.10.30 서비스 공식 종료 고지)</li>
                   <li><strong>네이버 검색 API</strong>: NAVER Corp. 오픈API (2026.07.31 서비스 공식 종료 고지)</li>

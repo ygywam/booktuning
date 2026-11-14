@@ -23,7 +23,7 @@ const TOUR_STEPS: TourStep[] = [
     badge: '지금 읽는 책',
     title: '읽고 있는 책 바로 기록하기',
     description:
-      '현재 읽고 있는 책들의 진행률을 직관적으로 확인해요. 책 카드를 누르면 독서일지와 인상 깊은 문장, AI 감상문 창이 열립니다.',
+      '현재 읽고 있는 책들의 진행률을 직관적으로 확인해요. 책 카드를 누르면 독서일지와 인상 깊은 문장, 나만의 감상문 창이 열립니다.',
   },
   {
     selector: '[data-tour="calendar"]',
@@ -72,7 +72,7 @@ const TOUR_STEPS: TourStep[] = [
     badge: '환경 & 설정',
     title: '개발로그 & 앱 설정',
     description:
-      '개발로그에서 버전별 업데이트 히스토리를 확인하고, 설정에서 테마와 Google Gemini / LG EXAONE AI 모델을 맞춤 설정할 수 있습니다.',
+      '개발로그에서 버전별 업데이트 히스토리를 확인하고, 설정에서 서재 테마와 도서 검색 엔진을 맞춤 설정할 수 있습니다.',
   },
   {
     selector: null,

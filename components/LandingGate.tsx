@@ -168,7 +168,7 @@ export function LandingGate({
               {schoolName ? `${schoolName} BOOK TUNING` : 'BOOK TUNING'}
             </span>
             <span className="text-[11px] text-white/55">
-              {schoolName ? `${schoolName} 독서 서재` : '노션 공유 독서 아틀리에'} · v4.4.9
+              {schoolName ? `${schoolName} 독서 서재` : '노션 공유 독서 아틀리에'} · v4.5.0
             </span>
           </div>
         </div>
@@ -190,7 +190,7 @@ export function LandingGate({
             className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/90 backdrop-blur-md transition hover:bg-white/20"
           >
             <Settings className="w-3.5 h-3.5" />
-            <span>AI · 검색 설정</span>
+            <span>서재 환경 설정</span>
           </button>
         </div>
       </header>

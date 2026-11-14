@@ -74,11 +74,9 @@ export default function Home() {
 
   // 6. 선택된 도서 및 상세 뷰 상태
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
-  const [detailTab, setDetailTab] = useState<'timeline' | 'ai' | 'my'>('timeline');
+  const [detailTab, setDetailTab] = useState<'timeline' | 'my'>('timeline');
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
-  const [aiReport, setAiReport] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
   const [myReport, setMyReport] = useState('');
   const [myReportSaving, setMyReportSaving] = useState(false);
 
@@ -596,7 +594,6 @@ export default function Home() {
       const data = await res.json();
       if (data.ok) {
         setTimelineItems(data.timeline || []);
-        setAiReport(data.aiReport || '');
         setMyReport(data.myReport || '');
       }
     } catch (err) {
@@ -873,58 +870,10 @@ export default function Home() {
     }
   };
 
-  // AI 1인칭 독서 감상문 초안 생성
-  const handleGenerateAiReport = async () => {
+  // 나의 독서 감상문 영구 저장
+  const handleSaveMyReport = async () => {
     const targetBook = activeDetailBook || selectedBook;
     if (!targetBook) return;
-
-    if (aiProvider === 'exaone' && !aiStatus?.exaoneConfigured) {
-      alert('⚠️ LG EXAONE API 키가 서버에 등록되지 않았습니다.\n\n[설정] 모달에서 Google Gemini를 선택해 주시거나 Vercel 환경변수에 EXAONE_API_KEY를 등록해 주세요.');
-      return;
-    }
-
-    setAiLoading(true);
-    try {
-      const res = await fetch('/api/ai-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bookTitle: targetBook.title,
-          author: targetBook.author,
-          notionPageId: targetBook.bookId || targetBook.notionPageId,
-          aiProvider,
-        }),
-      });
-
-      const rawText = await res.text();
-      let data: any = null;
-      try {
-        data = JSON.parse(rawText);
-      } catch {
-        if (res.status === 504 || rawText.includes('An error occurred')) {
-          throw new Error('AI 감상문 생성 처리 시간이 지연되었습니다(504). 잠시 후 다시 시도해 주세요.');
-        }
-        throw new Error(`서버 응답 오류 (${res.status}): ${rawText.slice(0, 100)}`);
-      }
-
-      if (data.ok && data.aiReport) {
-        setAiReport(data.aiReport);
-        setMyReport((prev) => (prev ? prev : data.aiReport));
-        alert(`✨ ${data.providerName || 'AI'} 감상문 초안이 생성되었습니다!`);
-        fetchTimeline(targetBook.bookId || targetBook.notionPageId);
-      } else {
-        alert(data.error || 'AI 감상문 생성 실패');
-      }
-    } catch (err: any) {
-      alert(`AI 서버 통신 오류: ${err.message || '네트워크 상태를 확인해 주세요.'}`);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  // 나의 감상문 노션 본문 영구 저장
-  const handleSaveMyReport = async () => {
-    if (!selectedBook) return;
     if (!myReport.trim()) return alert('감상문 내용을 작성해 주세요.');
 
     setMyReportSaving(true);
@@ -933,14 +882,14 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bookId: selectedBook.bookId || selectedBook.notionPageId,
+          bookId: targetBook.bookId || targetBook.notionPageId,
           text: myReport,
           nickname: nickname.trim(),
         }),
       });
       const data = await res.json();
       if (data.ok) {
-        alert('✍️ 작성하신 독서 감상문이 노션 본문에 안전하게 영구 저장되었습니다!');
+        alert('✍️ 독서 감상문이 안전하게 저장되었습니다!');
       } else {
         alert(`저장 실패: ${data.error}`);
       }
@@ -963,8 +912,6 @@ export default function Home() {
       return (b.createdAt || '').localeCompare(a.createdAt || '');
     });
   }, [timelineItems]);
-
-  const activeAiName = aiProvider === 'exaone' ? 'LG EXAONE' : 'Google Gemini';
 
   // 새 로그인/회원가입 성공 핸들러
   const handleLoginSuccess = (authenticatedUser: User) => {
@@ -1599,11 +1546,11 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 탭 네비게이션: 모바일 가로 잘림 방지 3열 그리드 컨테이너 */}
-            <div className="grid grid-cols-3 gap-1.5 flex-shrink-0 mt-3 mb-3.5 w-full">
+            {/* 탭 네비게이션: 2열 균등 분할 컨테이너 */}
+            <div className="grid grid-cols-2 gap-2 flex-shrink-0 mt-3 mb-3.5 w-full">
               <button
                 type="button"
-                className={`w-full py-2 px-1 text-center rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1 ${
+                className={`w-full py-2.5 px-2 text-center rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1.5 ${
                   detailTab === 'timeline'
                     ? '!bg-amber-600 !text-white !border-amber-600 shadow-sm'
                     : '!bg-stone-100 hover:!bg-stone-200 !text-stone-700 !border-stone-200'
@@ -1614,18 +1561,7 @@ export default function Home() {
               </button>
               <button
                 type="button"
-                className={`w-full py-2 px-1 text-center rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1 ${
-                  detailTab === 'ai'
-                    ? '!bg-amber-600 !text-white !border-amber-600 shadow-sm'
-                    : '!bg-stone-100 hover:!bg-stone-200 !text-stone-700 !border-stone-200'
-                }`}
-                onClick={() => setDetailTab('ai')}
-              >
-                <span>✨ AI 감상문</span>
-              </button>
-              <button
-                type="button"
-                className={`w-full py-2 px-1 text-center rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1 ${
+                className={`w-full py-2.5 px-2 text-center rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1.5 ${
                   detailTab === 'my'
                     ? '!bg-amber-600 !text-white !border-amber-600 shadow-sm'
                     : '!bg-stone-100 hover:!bg-stone-200 !text-stone-700 !border-stone-200'
@@ -1949,48 +1885,13 @@ export default function Home() {
               </div>
             )}
 
-            {/* 탭 2. AI 1인칭 감상문 초안 */}
-            {detailTab === 'ai' && (
-              <div className="space-y-4">
-                <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-xs font-bold text-amber-950 mb-0.5">
-                      ✨ {activeAiName} 1인칭 감상문 초안 생성
-                    </h3>
-                    <p className="text-[11px] text-stone-600">
-                      누적된 진도 일지와 발췌 문장들을 융합해 독자 시점의 깊이 있는 감상문을 작성합니다.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={aiLoading}
-                    onClick={handleGenerateAiReport}
-                    className="px-4 py-2 text-xs font-bold rounded-xl"
-                  >
-                    {aiLoading ? 'AI 작성 중...' : `✨ ${activeAiName} 초안 작성`}
-                  </button>
-                </div>
-
-                {aiReport ? (
-                  <div className="p-4 rounded-2xl bg-white border border-stone-200 text-xs leading-relaxed text-stone-800 whitespace-pre-wrap max-h-[50vh] overflow-y-auto">
-                    {aiReport}
-                  </div>
-                ) : (
-                  <div className="p-10 text-center text-xs text-stone-400 bg-stone-50 rounded-2xl border border-stone-200">
-                    아직 생성된 AI 감상문이 없습니다. 위 버튼을 눌러 초안을 생성해 보세요.
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 탭 3. 나의 감상문 백업 */}
+            {/* 탭 2. 나의 독서 감상문 */}
             {detailTab === 'my' && (
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-xs font-bold text-stone-800 mb-1">✍️ 나의 최종 감상문 작성</h3>
+                  <h3 className="text-xs font-bold text-stone-800 mb-1">✍️ 나만의 독서 감상문</h3>
                   <p className="text-[11px] text-stone-500 mb-2">
-                    AI 초안을 다듬거나 직접 느낀 소감을 작성해 노션 도서 페이지 본문에 영구 보관합니다.
+                    책을 읽고 느낀 점이나 깊이 있는 생각을 자유롭게 작성해 안전하게 보관합니다.
                   </p>
                   <textarea
                     rows={12}
@@ -2006,9 +1907,9 @@ export default function Home() {
                     type="button"
                     disabled={myReportSaving}
                     onClick={handleSaveMyReport}
-                    className="px-5 py-2.5 text-xs font-bold rounded-xl"
+                    className="px-5 py-2.5 text-xs font-bold rounded-xl !bg-emerald-600 hover:!bg-emerald-700 !text-white transition cursor-pointer"
                   >
-                    {myReportSaving ? '노션 저장 중...' : '노션 본문에 저장하기 ↗'}
+                    {myReportSaving ? '저장 중...' : '저장하기'}
                   </button>
                 </div>
               </div>

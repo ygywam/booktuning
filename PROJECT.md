@@ -6,8 +6,8 @@
 - 실행 환경: Next.js 14 (App Router) + Vercel 배포 / Node.js
 - 프로젝트 유형: 데이터처리·대시보드
 - 형태: B 빌드 도구 (Next.js)
-- 기술 스택과 버전: Next.js 14.2.5, React 18.3.1, @notionhq/client 2.2.15, TypeScript 5.5.3, Tailwind CSS 3.4.4, Three.js 0.187, Google Gemini / LG EXAONE API
-- 인터넷 연결 필요 여부: 필수 (Notion API, Kakao/Aladin/Naver 도서검색 API, 국립중앙도서관 API, Gemini / EXAONE API)
+- 기술 스택과 버전: Next.js 14.2.5, React 18.3.1, @notionhq/client 2.2.15, TypeScript 5.5.3, Tailwind CSS 3.4.4, Three.js 0.187, Google Gemini Vision OCR (gemini-3.7-flash)
+- 인터넷 연결 필요 여부: 필수 (Notion API, Kakao 도서검색 API, 국립중앙도서관 API, Google Gemini OCR API)
 - 개인정보 취급 여부: 없음 (활동 닉네임만 표시 및 저장, 주민번호·연락처 등 민감정보 일절 미수집)
 - 검증 방법: `npm run dev` 실행 후 브라우저에서 도서 등록·조회, 진도·인사이트 타임라인, AI 감상문 생성, 노션 DB 실시간 동기화 확인
 - 시작일: 2026-10-21
@@ -47,3 +47,4 @@
 - [x] 구글 공식 최신 표준 모델 gemini-3.8-flash 적용 및 LG EXAONE 429 Rate Limit 백오프 자동 재시도 로직 확인
 - [x] Gemini 503(일시적 과부하) 자동 재시도 및 gemini-3.7-flash 자동 폴백 체인 구축 확인
 - [x] Gemini 3.7 Flash 우선 가동 및 504 타임아웃 방어·프론트엔드 안전 파싱(Unexpected token 방어) 확인
+- [x] AI 감상문 탭 및 EXAONE 전면 제거, 나만의 감상문 직접 작성 체계 확립, Google Gemini 책 사진 비전 OCR 단일화 및 문서·안내 전면 동기화 확인

@@ -1,12 +1,12 @@
-# 📚 북튜닝 (Book Tuning) v4.4
+# 📚 북튜닝 (Book Tuning) v4.5
 
 > **"책을 읽고 기록하며, 내 삶과 생각의 주파수를 맞춰가는 공간"**  
 > 구글 시트(GAS)를 완전히 걷어내고 **노션(Notion)을 단독 실시간 데이터베이스(DB)로 활용**하는 Next.js 14 풀스택 독서 기록 웹앱입니다.  
-> v4.4에서는 개인 대시보드 4대 탭(홈·서재·피드·도감) 체계와 macOS Dock 스타일의 가로 휠 캐러셀 서가가 전면 도입되었습니다.
+> v4.5에서는 학급 서재와 교사 모임 서재의 완벽한 분리 연동, 나만의 독서 감상문 직접 작성, Google Gemini 기반 책 사진 고정밀 OCR 수집 기능이 안정화되었습니다.
 
 [![Next.js 14](https://img.shields.io/badge/Next.js-14.2-black?logo=next.js)](https://nextjs.org/)
 [![Notion API](https://img.shields.io/badge/Notion%20API-v2.2-white?logo=notion)](https://developers.notion.com/)
-[![Gemini & EXAONE](https://img.shields.io/badge/Dual%20AI-Gemini%20%7C%20EXAONE-orange)](https://aistudio.google.com/)
+[![Gemini OCR](https://img.shields.io/badge/Vision%20OCR-Google%20Gemini-blue)](https://aistudio.google.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fygywam%2Fbooktuning&env=NOTION_API_KEY,NOTION_BOOK_DB_ID,NOTION_LOG_DB_ID,NOTION_INSIGHT_DB_ID,NOTION_USER_DB_ID,GEMINI_API_KEY&envDescription=%EB%85%B8%EC%85%98%20API%20%ED%86%A0%ED%81%B0%EA%B3%BC%20%EB%8D%B0%EC%9D%B4%ED%84%B0%EB%B2%A0%EC%9D%B4%EC%8A%A4%2032%EC%9E%90%EB%A6%AC%20ID%20%EB%B0%8F%20Gemini%20API%20%ED%82%A4%EB%5B%ED%95%84%EC%88%98%5D%EB%A5%BC%20%EC%9E%85%EB%A0%A5%ED%95%98%EC%84%B8%EC%9A%94&envLink=https%3A%2F%2Fgithub.com%2Fygywam%2Fbooktuning%23step-2-%EB%85%B8%EC%85%98notion-%ED%85%9C%ED%94%8C%EB%A6%BF-%EB%B3%B5%EC%A0%9C-%EB%B0%8F-api-%ED%82%A4-%EB%B0%9C%EA%B8%89)
 
@@ -37,10 +37,9 @@
 - **동명이인 방지 및 본인 인증**: `활동 닉네임 + 4자리 PIN` 기반으로 하나의 노션 데이터베이스를 공유하면서도 각자의 포트폴리오를 유지합니다.
 - **철저한 소유권 보호**: 본인이 등록한 도서에 대해서만 진도 기록, 문장 수집, 도서 수정/삭제가 가능하며 타인의 도서는 읽기 전용으로 안전하게 보호됩니다.
 
-### 4. 🤖 듀얼 AI 엔진 (Google Gemini & LG EXAONE)
-- **Google Gemini** (`gemini-3.8-flash`): 고정밀 비전 OCR 텍스트 추출 및 맞춤형 1인칭 독서 감상문 초안 생성
-- **LG EXAONE** (`k-exaone_v2.5`): 한국어 문맥에 최적화된 깊이 있는 독서 감상문 생성
-- 환경 설정(`[⚙️ 설정]`)에서 원하는 AI 엔진을 언제든 원클릭으로 전환할 수 있습니다.
+### 4. 📸 책 사진 본문 OCR 및 나만의 감상문 직접 작성
+- **Google Gemini 비전 OCR**: 책 속 인상 깊은 구절을 직접 타이핑할 필요 없이 스마트폰 카메라 사진이나 캡처 이미지를 첨부하면 고정밀 AI로 텍스트를 자동 추출하여 문장 수집에 기록합니다.
+- **나만의 독서 감상문 직접 작성**: AI 초안에 의존하지 않고, 자신이 축적한 진도 일지와 발췌 문장을 되짚어보며 진솔한 1인칭 독서 감상문을 정성껏 작성하고 노션에 안전하게 저장합니다.
 
 ### 5. 🎨 Three.js WebGL 입장 화면 & 스포트라이트 사용법
 - **감성 파동 입장 게이트**: Three.js `WebGLShader` 파동 배경과 `LiquidButton` 기반의 감성적인 진입 화면
@@ -55,7 +54,7 @@
 - **Graphics & 3D**: Three.js, Raw WebGL Shader, CSS GPU 하드웨어 가속
 - **Backend**: Next.js Serverless Route Handlers (`app/api/*`)
 - **Database**: Notion Database (`@notionhq/client` v2.2)
-- **AI & OCR**: Google Gemini (`gemini-3.8-flash`), LG EXAONE (`k-exaone_v2.5`)
+- **AI Vision OCR**: Google Gemini Vision (`gemini-3.7-flash`)
 - **Book Search**: Kakao Books API, 국립중앙도서관 오픈API
 - **Deployment**: Vercel (클라우드 무중단 자동 배포)
 
@@ -96,11 +95,8 @@
 | `NOTION_LOG_DB_ID` | 노션 독서일지 데이터베이스 32자리 ID | **필수** |
 | `NOTION_INSIGHT_DB_ID` | 노션 문장수집 데이터베이스 32자리 ID | **필수** |
 | `NOTION_USER_DB_ID` | 노션 사용자 데이터베이스 32자리 ID | **필수** |
-| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/app/apikey) 무료 API 키 | **필수 (Gemini OCR/AI)** |
-| `EXAONE_API_KEY` | [LG EXAONE API Platform](https://docs.exaone.ai) API 키 | **선택 (EXAONE AI)** |
-| `EXAONE_MODEL` | 사용할 EXAONE 모델 ID (기본값: `k-exaone_v2.5`) | 선택 |
-| `EXAONE_API_BASE_URL` | EXAONE API 엔드포인트 URL | 선택 |
-| `GEMINI_MODEL` | 사용할 Gemini 모델 ID (기본값: `gemini-3.8-flash`) | 선택 |
+| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/app/apikey) 무료 API 키 (책 사진 본문 OCR용) | **선택 (OCR 사용 시)** |
+| `GEMINI_MODEL` | 사용할 Gemini 모델 ID (기본값: `gemini-3.7-flash`) | 선택 |
 | `KAKAO_REST_API_KEY` | [카카오 Developers](https://developers.kakao.com/) REST API 키 | 권장 (도서검색) |
 | `NL_API_KEY` | [국립중앙도서관](https://www.nl.go.kr/) 오픈API 인증키 | 선택 (쪽수 연동) |
 | `NEXT_PUBLIC_NOTION_DATABASE_URL` | 푸터의 '노션 데이터베이스 열기 ↗' 바로가기 링크 (미입력 시 버튼 숨김) | 선택 (개인정보 보호) |
@@ -162,8 +158,7 @@ npm run dev
 | **서재 & 개발로그** | macOS Dock 스타일 휠 캐러셀 및 피시아이 인터랙션 | Apple macOS Dock 인터랙션 패턴 및 북튜닝 커스텀 | Custom CSS/JS |
 | **도서 검색** | 카카오 도서 검색 API (표지·서지정보) | Kakao Corp. | Kakao Open API Terms |
 | **서지 쪽수** | 국립중앙도서관(NL) 서지정보 오픈API | 국립중앙도서관 (대한민국 정부) | 공공데이터 활성화 공공누리 |
-| **AI 모델** | Gemini 3.8 Flash & Vision OCR | Google DeepMind | Google AI Studio Terms |
-| **AI 모델** | K-EXAONE 2.5 텍스트 감상문 생성 | LG AI Research | LG EXAONE API Terms |
+| **AI 비전 OCR** | Gemini Vision OCR (`gemini-3.7-flash`) | Google DeepMind | Google AI Studio Terms |
 | **백엔드 SDK** | Notion Client SDK (`@notionhq/client`) | Notion Labs, Inc. | MIT License |
 | **아이콘** | Lucide React Icons | Lucide Project | ISC License |
 | **디자인 시스템** | Tailwind CSS & Impeccable Design Token | Tailwind Labs | MIT License |

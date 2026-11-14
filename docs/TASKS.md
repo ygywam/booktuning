@@ -196,3 +196,12 @@
 - [x] 503 감지 시 불필요한 슬립 대기를 제거하고 0초 즉시 폴백(Fast Fallback)으로 전환하여 Vercel 10초 타임아웃(504) 원천 차단
 - [x] 프론트엔드(`app/page.tsx`) `rawText` 안전 파싱: Vercel HTML 응답 시 `Unexpected token 'A'` 파싱 에러 방어 및 친절 에러 팝업 보장
 - [x] `v4.4.9` 버전 bump 및 동적 buildId(`build-v4.4.9-timestamp`) 적용 완료
+
+## 24단계: AI 감상문 기능 및 EXAONE 전면 제거·나만의 감상문 직접 작성 단일화·Gemini OCR 최적화 (완료)
+- [x] 상세 모달 내 `✨ AI 감상문` 탭 완전 제거 및 `📅 피드`, `✍️ 나의 감상문` 2대 탭 체계로 정돈
+- [x] `✍️ 나의 감상문` 탭 개선: 인공지능 초안 의존을 탈피하고 직접 1인칭 독서 감상문을 작성하는 취지에 맞추어 제목·안내 문구 정돈 및 저장 버튼을 단순 명료한 `저장하기`로 간소화
+- [x] 책 사진 OCR(문장 수집) 기능은 Google Gemini 비전(`gemini-3.7-flash`) 단독 엔진으로 안정화 유지
+- [x] 불안정했던 LG EXAONE AI 기능 및 코드(`lib/ai.ts`) 전면 삭제
+- [x] 서재 환경 설정 모달 내 'AI 엔진 선택 (감상문 & OCR)' 섹션 완전 제거 (Google Gemini OCR 단독 고정)
+- [x] 사용법 튜토리얼(`SpotlightTutorial.tsx`), 개인정보처리방침, 저작권 및 레퍼런스(`AppInfoModals.tsx`), `README.md`, `.env.example` 등 전반의 AI 감상문/EXAONE 안내를 나만의 감상문 직접 작성 및 책 사진 비전 OCR로 갱신
+- [x] `v4.5.0` 버전 bump, 동적 buildId(`build-v4.5.0-timestamp`) 갱신 및 프로덕션 빌드 무결성 검증 완료
