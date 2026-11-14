@@ -29,6 +29,7 @@ export function LandingGate({
   onOpenPrivacy,
   onOpenCopyright,
 }: LandingGateProps) {
+  const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME?.trim() || '';
   const [nickInput, setNickInput] = useState(initialNickname);
   const [pinInput, setPinInput] = useState(initialPin);
   const [submitting, setSubmitting] = useState(false);
@@ -78,9 +79,11 @@ export function LandingGate({
           />
           <div className="flex flex-col">
             <span className="text-xs font-extrabold tracking-widest uppercase text-white/90">
-              BOOK TUNING
+              {schoolName ? `${schoolName} BOOK TUNING` : 'BOOK TUNING'}
             </span>
-            <span className="text-[11px] text-white/55">노션 공유 독서 아틀리에 · v4.3</span>
+            <span className="text-[11px] text-white/55">
+              {schoolName ? `${schoolName} 노션 독서 서재` : '노션 공유 독서 아틀리에'} · v4.4
+            </span>
           </div>
         </div>
 

@@ -431,6 +431,24 @@ export default function AppInfoModals({
                 </ul>
               </div>
 
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                <h4 className="font-bold text-emerald-950 text-xs mb-1">5. 학교별 맞춤 배포(White-label) 및 도메인 권장 양식</h4>
+                <p className="text-emerald-900 mb-1.5">
+                  전국의 초·중·고등학교 및 교육 기관은 GitHub 원본 저장소(<a href="https://github.com/ygywam/booktuning" target="_blank" rel="noreferrer" className="underline font-semibold">ygywam/booktuning</a>)를 자유롭게 복제(Fork)하여 학교 전용의 독립 독서 플랫폼으로 배포·운영하실 수 있습니다.
+                </p>
+                <ul className="list-disc pl-4 space-y-1 text-emerald-800 text-[11.5px]">
+                  <li>
+                    <strong>학교명 환경변수</strong>: Vercel 환경변수에서 <code>NEXT_PUBLIC_SCHOOL_NAME=&quot;학교명&quot;</code> (예: <code>서울외고</code>)을 등록하면 마스트헤드와 브라우저 탭, 입장 게이트에 <strong>&apos;OOO 북튜닝&apos;</strong>으로 자동 브랜딩됩니다.
+                  </li>
+                  <li>
+                    <strong>Vercel 권장 도메인 규칙</strong>: 학교 전용 주소로 인지될 수 있도록 프로젝트 도메인을 <code>booktuning-(학교영문약칭).vercel.app</code> (예: 서울외고 ➔ <code>booktuning-sfl.vercel.app</code>) 형태로 설정하는 것을 권장합니다.
+                  </li>
+                  <li>
+                    <strong>원저작자 표기 유지</strong>: 학교별로 배포하여 자유롭게 사용하시되, 본 저작권 안내 및 푸터의 원저작자(기록조율사 @record_tuner) 표기는 보존해 주셔야 합니다.
+                  </li>
+                </ul>
+              </div>
+
               <div className="p-2.5 bg-stone-50 rounded-xl border border-stone-200 text-[11px] text-stone-500">
                 💡 <strong>도서 서지 정보 및 표지 이미지 저작권</strong>
                 <br />

@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
+const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME?.trim() || '';
+const baseTitle = schoolName ? `${schoolName} 북튜닝 (Book Tuning)` : '북튜닝 (Book Tuning)';
+
 export const metadata: Metadata = {
-  title: '북튜닝 (Book Tuning) v4.3 - 노션 독서 서재',
+  title: `${baseTitle} v4.4 - 노션 독서 서재`,
   description: '책을 읽고 기록하며 내 삶과 생각의 주파수를 맞춰가는 공간',
   manifest: '/manifest.json',
   icons: {
@@ -12,7 +15,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: '북튜닝',
+    title: baseTitle,
   },
 };
 

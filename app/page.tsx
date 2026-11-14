@@ -21,6 +21,9 @@ import SpotlightTutorial from '@/components/SpotlightTutorial';
 import AppInfoModals from '@/components/AppInfoModals';
 
 export default function Home() {
+  const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME?.trim() || '';
+  const appDisplayTitle = schoolName ? `${schoolName} 북튜닝` : '북튜닝 (Book Tuning)';
+
   // 1. 유저 및 세션 상태
   const [user, setUser] = useState<User | null>(null);
   const [nickname, setNickname] = useState('');
@@ -741,12 +744,12 @@ export default function Home() {
                 title="대시보드 홈으로 이동"
               >
                 <img src="/icon.svg" className="app-logo-icon" alt="북튜닝 로고" />
-                <h1>북튜닝 (Book Tuning)</h1>
+                <h1>{appDisplayTitle}</h1>
               </div>
               <p className="subtitle">
                 {nickname
-                  ? `${nickname}님과 함께 읽고 기록하며 삶의 주파수를 맞춰가는 공유 서재입니다.`
-                  : '책을 읽고 기록하며 내 삶과 생각의 주파수를 맞춰가는 공간입니다.'}
+                  ? `${nickname}님과 함께 읽고 기록하며 삶의 주파수를 맞춰가는 ${schoolName ? `${schoolName} ` : ''}공유 서재입니다.`
+                  : `책을 읽고 기록하며 내 삶과 생각의 주파수를 맞춰가는 ${schoolName ? `${schoolName} ` : ''}공간입니다.`}
               </p>
             </div>
 
