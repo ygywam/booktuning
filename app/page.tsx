@@ -27,7 +27,7 @@ export default function Home() {
   const [pin, setPin] = useState('');
   const [hasEnteredLibrary, setHasEnteredLibrary] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
-  const [theme, setTheme] = useState('theme-base');
+  const [theme, setTheme] = useState('theme-forest');
   const [aiProvider, setAiProvider] = useState<AiProvider>('gemini');
   const [aiStatus, setAiStatus] = useState<AiStatusInfo | null>(null);
 
@@ -111,7 +111,7 @@ export default function Home() {
     try {
       const savedUser = localStorage.getItem('app_user');
       const savedNickname = localStorage.getItem('app_nickname') || '';
-      const savedTheme = localStorage.getItem('app_theme') || 'theme-base';
+      const savedTheme = localStorage.getItem('app_theme') || 'theme-forest';
       const savedSearchApi = localStorage.getItem('search_api_type') as any;
       const savedAiProvider = localStorage.getItem('ai_provider') as any;
       const guestEntered = localStorage.getItem('guest_entered') === 'true';
@@ -796,43 +796,74 @@ export default function Home() {
 
           {/* 2. PC 상단 4대 메뉴 탭 네비게이션 */}
           <nav className="desktop-top-nav" data-tour="main-nav" aria-label="메인 탭 네비게이션">
-            <button
-              type="button"
-              data-tour="nav-home"
-              className={`desktop-nav-btn ${activeTab === 'home' ? 'active' : ''}`}
-              onClick={() => setActiveTab('home')}
-            >
-              <span>🏠 홈</span>
-            </button>
-            <button
-              type="button"
-              data-tour="nav-library"
-              className={`desktop-nav-btn ${activeTab === 'library' ? 'active' : ''}`}
-              onClick={() => setActiveTab('library')}
-            >
-              <span>📚 서재</span>
-              {books.length > 0 && (
-                <span className={`desktop-nav-badge ${activeTab === 'library' ? 'active' : ''}`}>
-                  {myBooks.length > 0 ? myBooks.length : books.length}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              data-tour="nav-feed"
-              className={`desktop-nav-btn ${activeTab === 'feed' ? 'active' : ''}`}
-              onClick={() => setActiveTab('feed')}
-            >
-              <span>💬 피드</span>
-            </button>
-            <button
-              type="button"
-              data-tour="nav-dex"
-              className={`desktop-nav-btn ${activeTab === 'dex' ? 'active' : ''}`}
-              onClick={() => setActiveTab('dex')}
-            >
-              <span>🐾 도감</span>
-            </button>
+            {[
+              {
+                id: 'home' as const,
+                label: '홈',
+                renderIcon: (active: boolean) => (
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={active ? 1.8 : 1.7}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5.5v-6.5h-5V21H4a1 1 0 0 1-1-1v-9.5z" />
+                  </svg>
+                ),
+              },
+              {
+                id: 'library' as const,
+                label: '서재',
+                renderIcon: (active: boolean) => (
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={active ? 2.1 : 1.7}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 5.5A1.5 1.5 0 0 1 5.5 4h2A1.5 1.5 0 0 1 9 5.5v13A1.5 1.5 0 0 1 7.5 20h-2A1.5 1.5 0 0 1 4 18.5v-13zm5.5 0A1.5 1.5 0 0 1 11 4h2a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 13 20h-2a1.5 1.5 0 0 1-1.5-1.5v-13zm5.8.6a1.5 1.5 0 0 1 1.1-1.8l1.9-.5a1.5 1.5 0 0 1 1.8 1.1l2.8 12.6a1.5 1.5 0 0 1-1.1 1.8l-1.9.5a1.5 1.5 0 0 1-1.8-1.1L15.3 6.1z" />
+                  </svg>
+                ),
+              },
+              {
+                id: 'feed' as const,
+                label: '피드',
+                renderIcon: (active: boolean) => (
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={1.7}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h6m-8 8l3.2-2.6H19a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9.4A2 2 0 0 0 5 17.4V20z" />
+                  </svg>
+                ),
+              },
+              {
+                id: 'dex' as const,
+                label: '도감',
+                renderIcon: (active: boolean) => (
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={1.7}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 13.5c-2.6 0-5 2-5 4.3 0 1.4 1.1 2.2 2.5 2.2.9 0 1.7-.4 2.5-.4s1.6.4 2.5.4c1.4 0 2.5-.8 2.5-2.2 0-2.3-2.4-4.3-5-4.3z" />
+                    <circle cx="7" cy="9.5" r="1.4" />
+                    <circle cx="10.2" cy="6.8" r="1.4" />
+                    <circle cx="13.8" cy="6.8" r="1.4" />
+                    <circle cx="17" cy="9.5" r="1.4" />
+                  </svg>
+                ),
+              },
+            ].map((item) => {
+              const isActive = activeTab === item.id;
+              let badge: number | undefined;
+              if (item.id === 'library') {
+                const count = myBooks.length > 0 ? myBooks.length : books.length;
+                if (count > 0) badge = count;
+              } else if (item.id === 'dex') {
+                const doneCount = myBooks.filter((b) => (b.progressPercent || 0) >= 100).length;
+                if (doneCount > 0) badge = doneCount;
+              }
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  data-tour={`nav-${item.id}`}
+                  className={`desktop-nav-btn ${isActive ? 'active' : ''}`}
+                  onClick={() => setActiveTab(item.id)}
+                >
+                  <span className="inline-flex items-center justify-center">{item.renderIcon(isActive)}</span>
+                  <span>{item.label}</span>
+                  {typeof badge === 'number' && (
+                    <span className={`desktop-nav-badge ${isActive ? 'active' : ''}`}>{badge}</span>
+                  )}
+                </button>
+              );
+            })}
           </nav>
 
           {/* 3. 4대 탭 본문 영역 */}

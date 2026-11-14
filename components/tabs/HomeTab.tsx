@@ -72,17 +72,48 @@ export default function HomeTab({
     return myBooks.filter((b) => (b.progressPercent || 0) < 100);
   }, [myBooks]);
 
+  const myCompletedBooks = useMemo(() => {
+    return myBooks.filter((b) => (b.progressPercent || 0) >= 100);
+  }, [myBooks]);
+
+  // 내 도서 ID Set (홈 화면을 오로지 내 기록으로만 엄격 격리)
+  const myBookIdSet = useMemo(() => {
+    return new Set(myBooks.map((b) => b.notionPageId || b.bookId));
+  }, [myBooks]);
+
+  // 내 기록 여부 판별 (닉네임 일치 또는 내 도서에 속한 기록)
+  const isMyRecord = useMemo(() => {
+    return (itemNickname?: string, bookNotionPageId?: string) => {
+      if (currentUserNickname && itemNickname && itemNickname.trim() === currentUserNickname.trim()) {
+        return true;
+      }
+      if (bookNotionPageId && myBookIdSet.has(bookNotionPageId)) {
+        return true;
+      }
+      return false;
+    };
+  }, [currentUserNickname, myBookIdSet]);
+
+  // 홈 화면은 오로지 나의 독서기록(내 일지 + 내 문장수집)만 사용
+  const myLogs = useMemo(() => {
+    return logs.filter((l) => isMyRecord(l.nickname, l.bookNotionPageId));
+  }, [logs, isMyRecord]);
+
+  const myInsights = useMemo(() => {
+    return insights.filter((ins) => isMyRecord(ins.nickname, ins.bookNotionPageId));
+  }, [insights, isMyRecord]);
+
   // 2. 월간 독서 달력 상태
   const [viewYearMonth, setViewYearMonth] = useState<string>(todayStr.slice(0, 7));
   const [selectedDate, setSelectedDate] = useState<string>('');
 
-  // 내 기록(로그 & 문장수집) 날짜 매핑
+  // 내 기록(로그 & 문장수집) 날짜 매핑 (순수 내 기록만 달력에 색칠)
   const { myMonthlyLogs, myMonthlyInsights, recordsByDate } = useMemo(() => {
     const map: Record<string, { logs: ReadingLog[]; insights: InsightLog[] }> = {};
     const mLogs: ReadingLog[] = [];
     const mInsights: InsightLog[] = [];
 
-    logs.forEach((l) => {
+    myLogs.forEach((l) => {
       const d = normalizeDateStr(l.readDate);
       if (!d) return;
       if (!map[d]) map[d] = { logs: [], insights: [] };
@@ -90,7 +121,7 @@ export default function HomeTab({
       if (d.startsWith(viewYearMonth)) mLogs.push(l);
     });
 
-    insights.forEach((ins) => {
+    myInsights.forEach((ins) => {
       const d = normalizeDateStr(ins.readDate);
       if (!d) return;
       if (!map[d]) map[d] = { logs: [], insights: [] };
@@ -99,9 +130,9 @@ export default function HomeTab({
     });
 
     return { myMonthlyLogs: mLogs, myMonthlyInsights: mInsights, recordsByDate: map };
-  }, [logs, insights, viewYearMonth]);
+  }, [myLogs, myInsights, viewYearMonth]);
 
-  // 월간 독서 통계
+  // 월간 독서 통계 (순수 내 기록 기준)
   const monthlyStats = useMemo(() => {
     const activeDates = new Set<string>();
     let totalPagesInMonth = 0;
@@ -117,14 +148,19 @@ export default function HomeTab({
       if (d) activeDates.add(d);
     });
 
-    const myCompletedBooks = myBooks.filter((b) => (b.progressPercent || 0) >= 100);
+    // 해당 월에 내 완독 도서 중 읽은 기록이 있는 도서 수
+    const completedBookIdsThisMonth = new Set(
+      myMonthlyLogs
+        .map((l) => l.bookNotionPageId)
+        .filter((bId) => myCompletedBooks.some((b) => (b.notionPageId || b.bookId) === bId))
+    );
 
     return {
       daysCount: activeDates.size,
       pagesCount: totalPagesInMonth,
-      completedCount: myCompletedBooks.length,
+      completedInMonth: completedBookIdsThisMonth.size,
     };
-  }, [myMonthlyLogs, myMonthlyInsights, myBooks]);
+  }, [myMonthlyLogs, myMonthlyInsights, myCompletedBooks]);
 
   // 달력 그리드 계산
   const calendarDays = useMemo(() => {
@@ -178,7 +214,7 @@ export default function HomeTab({
     setSelectedDate('');
   };
 
-  // 3. 내 최근 독서기록 (일지 + 문장수집 통합 최신 5건)
+  // 3. 내 최근 독서기록 (순수 내 일지 + 내 문장수집 통합 최신 5건)
   const recentFeed = useMemo(() => {
     const list: Array<{
       id: string;
@@ -191,8 +227,10 @@ export default function HomeTab({
       pageLabel: string;
     }> = [];
 
-    logs.forEach((l) => {
-      const book = books.find((b) => b.notionPageId === l.bookNotionPageId);
+    myLogs.forEach((l) => {
+      const book =
+        myBooks.find((b) => (b.notionPageId || b.bookId) === l.bookNotionPageId) ||
+        books.find((b) => (b.notionPageId || b.bookId) === l.bookNotionPageId);
       list.push({
         id: `log-${l.logId}`,
         type: 'log',
@@ -205,8 +243,10 @@ export default function HomeTab({
       });
     });
 
-    insights.forEach((ins) => {
-      const book = books.find((b) => b.notionPageId === ins.bookNotionPageId);
+    myInsights.forEach((ins) => {
+      const book =
+        myBooks.find((b) => (b.notionPageId || b.bookId) === ins.bookNotionPageId) ||
+        books.find((b) => (b.notionPageId || b.bookId) === ins.bookNotionPageId);
       list.push({
         id: `ins-${ins.pageLogId}`,
         type: 'insight',
@@ -220,7 +260,7 @@ export default function HomeTab({
     });
 
     return list.sort((a, b) => b.sortKey.localeCompare(a.sortKey)).slice(0, 5);
-  }, [books, logs, insights]);
+  }, [myLogs, myInsights, myBooks, books]);
 
   const engineLabel =
     searchApiType === 'kakao'
@@ -232,12 +272,174 @@ export default function HomeTab({
   const selectedDayRecords = selectedDate ? recordsByDate[selectedDate] : null;
 
   const displayMonthNum = Number(viewYearMonth.split('-')[1] || 1);
-  const targetTotal = myBooks.length > 0 ? myBooks.length : (readingBooks.length + monthlyStats.completedCount) || 5;
-  const ratio = targetTotal > 0 ? Math.min(1, monthlyStats.completedCount / targetTotal) : 0;
+  const totalMyBooks = myBooks.length;
+  const totalCompletedCount = myCompletedBooks.length;
+  const ratio = totalMyBooks > 0 ? Math.min(1, totalCompletedCount / totalMyBooks) : 0;
   const radius = 34;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference * (1 - ratio);
-  const remainingCount = Math.max(0, targetTotal - monthlyStats.completedCount);
+
+  const renderCalendarCard = () => (
+    <section className="panel cal-panel" data-tour="calendar">
+      <div className="cal-top-bar">
+        <div className="cal-title-wrap">
+          <span className="cal-paw-icon" aria-hidden="true">🐾</span>
+          <h2 className="cal-title">{displayMonthNum}월 독서기록</h2>
+          <div className="cal-month-nav">
+            <button type="button" className="cal-nav-arrow" onClick={() => changeMonth(-1)} aria-label="이전 달">‹</button>
+            <span className="cal-ym-label">{viewYearMonth.replace('-', '.')}</span>
+            <button type="button" className="cal-nav-arrow" onClick={() => changeMonth(1)} aria-label="다음 달">›</button>
+          </div>
+        </div>
+
+        <div className="cal-top-actions">
+          <button type="button" className="cal-report-link" onClick={onGoToFeed}>
+            전체 피드 ›
+          </button>
+        </div>
+      </div>
+
+      {/* 본문 2단: 좌측 캘린더 + 우측 전체 독서 현황 도넛 */}
+      <div className="cal-body-grid">
+        {/* 좌측: 캘린더 그리드 */}
+        <div className="cal-left-col">
+          <div className="cal-summary-row">
+            <span><strong>{monthlyStats.daysCount}일</strong> 읽음</span>
+            <span className="cal-divider">|</span>
+            <span><strong>{monthlyStats.pagesCount}</strong>페이지</span>
+            <span className="cal-divider">|</span>
+            <span><strong>{monthlyStats.completedInMonth}권</strong> 완독</span>
+          </div>
+
+          <div className="cal-weekdays">
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w, i) => (
+              <span key={i} className={i === 0 ? 'is-sun' : ''}>{w}</span>
+            ))}
+          </div>
+
+          <div className="cal-days-grid">
+            {calendarDays.map((cell, idx) => {
+              if (!cell.dayNum) return <div key={`empty-${idx}`} className="cal-day-empty" />;
+              const isSelected = selectedDate === cell.dateStr;
+              return (
+                <button
+                  key={cell.dateStr}
+                  type="button"
+                  onClick={() => setSelectedDate(isSelected ? '' : cell.dateStr)}
+                  className={[
+                    'cal-day-cell',
+                    cell.hasRecord ? 'has-activity' : '',
+                    cell.isToday ? 'is-today' : '',
+                    isSelected ? 'is-selected' : '',
+                  ].filter(Boolean).join(' ')}
+                  title={`${cell.dateStr}${cell.hasRecord ? ' (기록 있음)' : ''}`}
+                >
+                  {cell.dayNum}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 우측: 전체 독서 현황 도넛 차트 */}
+        <div className="cal-right-col">
+          <div className="cal-goal-header">
+            <span className="cal-goal-title">📖 전체 독서 현황</span>
+          </div>
+
+          <div className="cal-donut-wrap">
+            <svg viewBox="0 0 88 88" className="cal-donut-svg">
+              <circle cx="44" cy="44" r={radius} className="cal-donut-track" />
+              <circle
+                cx="44"
+                cy="44"
+                r={radius}
+                className="cal-donut-progress"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                transform="rotate(-90 44 44)"
+              />
+            </svg>
+            <div className="cal-donut-center">
+              <strong>{totalCompletedCount}</strong>
+              <span>/{totalMyBooks}</span>
+            </div>
+          </div>
+
+          <p className="cal-goal-caption">
+            {totalMyBooks === 0 ? (
+              '등록된 도서가 없습니다'
+            ) : readingBooks.length === 0 ? (
+              '모든 도서를 완독했어요! 🎉'
+            ) : (
+              <>
+                <strong>{readingBooks.length}권</strong> 읽는 중 · <strong>{totalCompletedCount}권</strong> 완독
+              </>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {/* 선택한 날짜의 독서 기록 팝오버 */}
+      {selectedDate && selectedDayRecords && (
+        <div className="mt-3 p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 text-xs shadow-sm">
+          <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-amber-900/10">
+            <h4 className="text-xs font-bold text-amber-950">
+              📌 {selectedDate} 독서 기록 ({selectedDayRecords.logs.length + selectedDayRecords.insights.length}건)
+            </h4>
+            <button
+              type="button"
+              onClick={() => setSelectedDate('')}
+              className="text-[11px] text-stone-500 hover:text-stone-800 px-1 py-0.5"
+              aria-label="기록 닫기"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="cal-day-detail-list max-h-48 overflow-y-auto pr-1">
+            {selectedDayRecords.logs.map((l) => (
+              <div
+                key={l.logId}
+                className="cal-day-detail-item"
+                onClick={() => {
+                  const book =
+                    myBooks.find((b) => (b.notionPageId || b.bookId) === l.bookNotionPageId) ||
+                    books.find((b) => (b.notionPageId || b.bookId) === l.bookNotionPageId);
+                  if (book) onSelectBook(book);
+                }}
+              >
+                <div className="flex items-center justify-between text-[11px] text-stone-500">
+                  <span className="cal-tag-log">📖 독서일지</span>
+                  <span className="font-mono font-bold text-amber-950">{l.readPages}쪽까지</span>
+                </div>
+                <p className="text-stone-800 text-[11.5px] mt-0.5 font-medium">{l.note}</p>
+              </div>
+            ))}
+
+            {selectedDayRecords.insights.map((ins) => (
+              <div
+                key={ins.pageLogId}
+                className="cal-day-detail-item"
+                onClick={() => {
+                  const book =
+                    myBooks.find((b) => (b.notionPageId || b.bookId) === ins.bookNotionPageId) ||
+                    books.find((b) => (b.notionPageId || b.bookId) === ins.bookNotionPageId);
+                  if (book) onSelectBook(book);
+                }}
+              >
+                <div className="flex items-center justify-between text-[11px] text-stone-500">
+                  <span className="cal-tag-insight">💬 문장수집</span>
+                  <span className="font-mono font-bold text-amber-950">{ins.page}쪽</span>
+                </div>
+                <p className="text-stone-800 text-[11.5px] mt-0.5 font-serif italic text-amber-950/90">&ldquo;{ins.notes}&rdquo;</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
 
   return (
     <div className="home-layout">
@@ -401,23 +603,27 @@ export default function HomeTab({
             )}
           </section>
 
-          {/* 최근 독서기록 섹션 */}
+          {/* 모바일에서는 캘린더가 지금 읽는 책 바로 아래, 최근 독서기록 위에 오도록 순서 배치 */}
+          <div className="home-calendar-mobile-slot">
+            {renderCalendarCard()}
+          </div>
+
+          {/* 최근 독서기록 섹션 (내 기록만) */}
           <section className="panel recent-feed-panel" data-tour="recent-feed">
             <div className="home-section-head">
               <div className="home-section-title">
-                <span className="home-bookmark-badge" aria-hidden="true">✍️</span>
+                <span className="home-book-badge" aria-hidden="true">📖</span>
                 <h2>최근 독서기록</h2>
-                <span className="home-count-pill">{recentFeed.length}</span>
               </div>
               <button type="button" className="home-more-link" onClick={onGoToFeed}>
-                전체 피드 보기 ›
+                전체보기 ›
               </button>
             </div>
 
             {recentFeed.length === 0 ? (
               <div className="home-empty-box">
-                <p className="home-empty-title">남겨진 독서 기록이 없습니다</p>
-                <p className="home-empty-sub">책을 누르고 독서일지나 문장수집을 남겨보세요.</p>
+                <p className="home-empty-title">아직 내 독서 기록이 없어요</p>
+                <p className="home-empty-sub">지금 읽는 책을 눌러 진도와 문장을 기록하면 여기에 쌓여요</p>
               </div>
             ) : (
               <div className="recent-feed-list">
@@ -427,20 +633,16 @@ export default function HomeTab({
                     className="recent-feed-item"
                     onClick={() => item.book && onSelectBook(item.book)}
                   >
-                    <div className="recent-feed-badge-col">
-                      <span className={`recent-feed-type-pill ${item.type === 'log' ? 'is-log' : 'is-insight'}`}>
-                        {item.type === 'log' ? '일지' : '문장'}
+                    <div className="recent-feed-meta">
+                      <span className={`recent-feed-badge ${item.type === 'insight' ? 'is-insight' : 'is-log'}`}>
+                        {item.type === 'insight' ? '문장수집' : '독서일지'}
                       </span>
-                      <span className="recent-feed-page-tag">{item.pageLabel}</span>
+                      <span className="recent-feed-book truncate">《{item.bookTitle}》</span>
+                      <span className="recent-feed-date">{item.date} · {item.pageLabel}</span>
                     </div>
-
-                    <div className="recent-feed-content-col">
-                      <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <h4 className="recent-feed-book-title truncate">{item.bookTitle}</h4>
-                        <time className="recent-feed-date">{item.date}</time>
-                      </div>
-                      <p className="recent-feed-text line-clamp-2">{item.content}</p>
-                    </div>
+                    <p className="recent-feed-content">
+                      {item.type === 'insight' ? `“${item.content}”` : item.content}
+                    </p>
                   </article>
                 ))}
               </div>
@@ -448,155 +650,9 @@ export default function HomeTab({
           </section>
         </div>
 
-        {/* 우측 열: 월 독서기록 달력 & 월간 통계 */}
+        {/* 우측 열: 월 독서기록 달력 & 전체 독서 현황 (PC 전용) */}
         <div className="home-col-secondary">
-          <section className="panel cal-panel" data-tour="calendar">
-            <div className="cal-top-bar">
-              <div className="cal-title-wrap">
-                <span className="cal-paw-icon" aria-hidden="true">🐾</span>
-                <h2 className="cal-title">{displayMonthNum}월 독서기록</h2>
-                <div className="cal-month-nav">
-                  <button type="button" className="cal-nav-arrow" onClick={() => changeMonth(-1)} aria-label="이전 달">‹</button>
-                  <span className="cal-ym-label">{viewYearMonth.replace('-', '.')}</span>
-                  <button type="button" className="cal-nav-arrow" onClick={() => changeMonth(1)} aria-label="다음 달">›</button>
-                </div>
-              </div>
-
-              <div className="cal-top-actions">
-                <button type="button" className="cal-report-link" onClick={onGoToFeed}>
-                  전체 피드 ›
-                </button>
-              </div>
-            </div>
-
-            {/* 본문 2단: 좌측 캘린더 + 우측 이번 달 목표 도넛 */}
-            <div className="cal-body-grid">
-              {/* 좌측: 캘린더 그리드 */}
-              <div className="cal-left-col">
-                <div className="cal-summary-row">
-                  <span><strong>{monthlyStats.daysCount}일</strong> 읽음</span>
-                  <span className="cal-divider">|</span>
-                  <span><strong>{monthlyStats.pagesCount}</strong>페이지</span>
-                  <span className="cal-divider">|</span>
-                  <span><strong>{monthlyStats.completedCount}권</strong> 완독</span>
-                </div>
-
-                <div className="cal-weekdays">
-                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w, i) => (
-                    <span key={i} className={i === 0 ? 'is-sun' : ''}>{w}</span>
-                  ))}
-                </div>
-
-                <div className="cal-days-grid">
-                  {calendarDays.map((cell, idx) => {
-                    if (!cell.dayNum) return <div key={`empty-${idx}`} className="cal-day-empty" />;
-                    const isSelected = selectedDate === cell.dateStr;
-                    return (
-                      <button
-                        key={cell.dateStr}
-                        type="button"
-                        onClick={() => setSelectedDate(isSelected ? '' : cell.dateStr)}
-                        className={[
-                          'cal-day-cell',
-                          cell.hasRecord ? 'has-activity' : '',
-                          cell.isToday ? 'is-today' : '',
-                          isSelected ? 'is-selected' : '',
-                        ].filter(Boolean).join(' ')}
-                        title={`${cell.dateStr}${cell.hasRecord ? ' (기록 있음)' : ''}`}
-                      >
-                        {cell.dayNum}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 우측: 이번 달 목표 도넛 차트 */}
-              <div className="cal-right-col">
-                <div className="cal-goal-header">
-                  <span className="cal-goal-title">🎯 이번 달 목표</span>
-                </div>
-
-                <div className="cal-donut-wrap">
-                  <svg viewBox="0 0 88 88" className="cal-donut-svg">
-                    <circle cx="44" cy="44" r={radius} className="cal-donut-track" />
-                    <circle
-                      cx="44"
-                      cy="44"
-                      r={radius}
-                      className="cal-donut-progress"
-                      strokeDasharray={circumference}
-                      strokeDashoffset={strokeDashoffset}
-                      transform="rotate(-90 44 44)"
-                    />
-                  </svg>
-                  <div className="cal-donut-center">
-                    <strong>{monthlyStats.completedCount}</strong>
-                    <span>/{targetTotal}</span>
-                  </div>
-                </div>
-
-                <p className="cal-goal-caption">
-                  {remainingCount > 0 ? `목표까지 ${remainingCount}권 남았어요` : '모든 목표를 완독했어요! 🎉'}
-                </p>
-              </div>
-            </div>
-
-            {/* 선택한 날짜의 독서 기록 팝오버 */}
-            {selectedDate && selectedDayRecords && (
-              <div className="mt-3 p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 text-xs shadow-sm">
-                <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-amber-900/10">
-                  <h4 className="text-xs font-bold text-amber-950">
-                    📌 {selectedDate} 독서 기록 ({selectedDayRecords.logs.length + selectedDayRecords.insights.length}건)
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedDate('')}
-                    className="text-[11px] text-stone-500 hover:text-stone-800 px-1 py-0.5"
-                    aria-label="기록 닫기"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="cal-day-detail-list max-h-48 overflow-y-auto pr-1">
-                  {selectedDayRecords.logs.map((l) => (
-                    <div
-                      key={l.logId}
-                      className="cal-day-detail-item"
-                      onClick={() => {
-                        const book = books.find((b) => b.bookId === l.bookNotionPageId || b.notionPageId === l.bookNotionPageId);
-                        if (book) onSelectBook(book);
-                      }}
-                    >
-                      <div className="flex items-center justify-between text-[11px] text-stone-500">
-                        <span className="cal-tag-log">📖 독서일지</span>
-                        <span className="font-mono font-bold text-amber-950">{l.readPages}쪽까지</span>
-                      </div>
-                      <p className="text-stone-800 text-[11.5px] mt-0.5 font-medium">{l.note}</p>
-                    </div>
-                  ))}
-
-                  {selectedDayRecords.insights.map((ins) => (
-                    <div
-                      key={ins.pageLogId}
-                      className="cal-day-detail-item"
-                      onClick={() => {
-                        const book = books.find((b) => b.bookId === ins.bookNotionPageId || b.notionPageId === ins.bookNotionPageId);
-                        if (book) onSelectBook(book);
-                      }}
-                    >
-                      <div className="flex items-center justify-between text-[11px] text-stone-500">
-                        <span className="cal-tag-insight">💬 문장수집</span>
-                        <span className="font-mono font-bold text-amber-950">{ins.page}쪽</span>
-                      </div>
-                      <p className="text-stone-800 text-[11.5px] mt-0.5 font-serif italic text-amber-950/90">&ldquo;{ins.notes}&rdquo;</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
+          {renderCalendarCard()}
         </div>
       </div>
     </div>

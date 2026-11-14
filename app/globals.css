@@ -1908,28 +1908,37 @@ p {
 }
 
 .lib-scope-row {
-  display: flex;
-  gap: 8px;
-  margin: 12px 0;
+  display: inline-flex;
+  gap: 4px;
+  background: var(--panel-warm);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--line-subtle);
+  margin: 12px 0 16px;
 }
 
 .lib-scope-btn {
-  flex: 1;
-  background: var(--panel-warm);
+  background: transparent;
   color: var(--muted);
-  border: 1px solid var(--line);
-  padding: 9px 10px;
-  font-size: 12.5px;
-  border-radius: 10px;
+  border: none;
+  padding: 7px 18px;
+  font-size: 13px;
+  border-radius: 9px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.lib-scope-btn:hover {
+  color: var(--text);
 }
 
 .lib-scope-btn.active {
-  background: var(--accent);
-  color: #ffffff;
-  border-color: var(--accent);
+  background: var(--panel);
+  color: var(--accent);
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 .lib-filter-bar {
@@ -2477,6 +2486,7 @@ p {
 
   .home-calendar-mobile-slot {
     display: block;
+    margin-bottom: 14px;
   }
 
   .home-section-head {

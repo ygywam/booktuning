@@ -41,8 +41,8 @@ const NAV_ITEMS: Array<{
     id: 'feed',
     label: '피드',
     renderIcon: (active) => (
-      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={active ? 2.1 : 1.7}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+      <svg viewBox="0 0 24 24" className="w-5 h-5" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={1.7}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h6m-8 8l3.2-2.6H19a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9.4A2 2 0 0 0 5 17.4V20z" />
       </svg>
     ),
   },
@@ -50,8 +50,12 @@ const NAV_ITEMS: Array<{
     id: 'dex',
     label: '도감',
     renderIcon: (active) => (
-      <svg viewBox="0 0 24 24" className="w-5 h-5" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={active ? 1.8 : 1.7}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v18l7-4 7 4V3a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z" />
+      <svg viewBox="0 0 24 24" className="w-5 h-5" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={1.7}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 13.5c-2.6 0-5 2-5 4.3 0 1.4 1.1 2.2 2.5 2.2.9 0 1.7-.4 2.5-.4s1.6.4 2.5.4c1.4 0 2.5-.8 2.5-2.2 0-2.3-2.4-4.3-5-4.3z" />
+        <circle cx="7" cy="9.5" r="1.4" />
+        <circle cx="10.2" cy="6.8" r="1.4" />
+        <circle cx="13.8" cy="6.8" r="1.4" />
+        <circle cx="17" cy="9.5" r="1.4" />
       </svg>
     ),
   },
