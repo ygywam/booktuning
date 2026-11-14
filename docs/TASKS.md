@@ -184,3 +184,9 @@
 - [x] 구글 공식 신규 가성비 표준 모델 `gemini-3.8-flash` 확정 적용 (`lib/ai.ts`, `.env.example`): 구세대 2.5 폐지에 따른 404 원천 해결
 - [x] LG EXAONE 429 Too Many Requests 방어: 2초 지수 백오프 자동 재시도 탑재 및 무료 티어 호출 한도(RPM) 안내 메시지 고도화
 - [x] `v4.4.7` 버전 bump 및 동적 buildId(`build-v4.4.7-timestamp`) 적용 완료
+
+## 22단계: Gemini 503(일시적 과부하) 자동 재시도 및 모델 폴백 체인 구축 (완료)
+- [x] Gemini API 503 Service Unavailable (High Demand Spike) 대응 지수 백오프 자동 재시도 로직 구현
+- [x] Gemini 다중 모델 자동 폴백 체인 구축 (`gemini-3.8-flash` 과부하 시 `gemini-3.7-flash`로 즉시 무중단 자동 전환)
+- [x] 비전 OCR에도 503 재시도 및 친절 안내 적용
+- [x] `v4.4.8` 버전 bump 및 동적 buildId(`build-v4.4.8-timestamp`) 적용 완료

@@ -38,25 +38,39 @@ function stripThinkingTags(text: string): string {
 }
 
 /**
- * Gemini 텍스트 생성 호출
+ * 단일 모델로 Gemini 텍스트 생성 시도 (503/429 시 1회 지수 백오프 재시도 포함)
  */
-async function callGeminiText(prompt: string): Promise<string> {
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (!geminiKey) {
-    throw new Error('서버 환경변수에 GEMINI_API_KEY가 설정되지 않았습니다.');
-  }
+async function tryGeminiModelOnce(
+  modelName: string,
+  prompt: string,
+  geminiKey: string
+): Promise<{ text: string } | { shouldFallback: boolean; error: string }> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODELS.gemini}:generateContent?key=${geminiKey}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-    }),
-  });
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+      }),
+    });
 
-  if (!res.ok) {
+    if (res.ok) {
+      const data = await res.json();
+      const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+      return { text };
+    }
+
     const errText = await res.text();
+
+    // 503(Service Unavailable / High Demand) 또는 일시적 429: 1차 실패 시 1.5초 대기 후 재시도
+    if ((res.status === 503 || res.status === 429) && attempt < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      continue;
+    }
+
+    // 402 선불 크레딧 소진
     if (
       res.status === 402 ||
       errText.includes('prepayment credits are depleted') ||
@@ -70,17 +84,54 @@ async function callGeminiText(prompt: string): Promise<string> {
         '3. 새 무료 API 키를 발급받아 Vercel 환경변수 GEMINI_API_KEY에 교체 등록 후 재배포해 주세요.'
       );
     }
-    if (res.status === 404 || errText.includes('is no longer available')) {
-      throw new Error(
-        `Gemini API 모델(${AI_MODELS.gemini}) 사용 불가 (HTTP 404).\n\n` +
-        `구글 정책에 따라 구세대 모델이 만료되었습니다. Vercel 환경변수에 GEMINI_MODEL이 있다면 제거하거나 'gemini-3.8-flash'로 갱신해 주세요.`
-      );
+
+    // 503 과부하 또는 404 모델 만료: 다음 폴백 모델로 넘길 수 있도록 플래그 반환
+    if (
+      res.status === 503 ||
+      res.status === 404 ||
+      errText.includes('high demand') ||
+      errText.includes('is no longer available')
+    ) {
+      return { shouldFallback: true, error: `[${modelName} (${res.status})] ${errText}` };
     }
+
     throw new Error(`Gemini API 통신 오류 (${res.status}): ${errText}`);
   }
 
-  const data = await res.json();
-  return (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+  return { shouldFallback: true, error: `[${modelName}] 재시도 실패` };
+}
+
+/**
+ * Gemini 텍스트 생성 호출 (주 모델 + 폴백 모델 체인 & 지수 백오프)
+ */
+async function callGeminiText(prompt: string): Promise<string> {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) {
+    throw new Error('서버 환경변수에 GEMINI_API_KEY가 설정되지 않았습니다.');
+  }
+
+  // 주 모델 및 폴백 모델 후보 체인
+  const candidateModels = Array.from(
+    new Set([AI_MODELS.gemini, 'gemini-3.7-flash', 'gemini-3.8-flash'].filter(Boolean))
+  );
+
+  let lastFallbackError = '';
+
+  for (const modelName of candidateModels) {
+    const result = await tryGeminiModelOnce(modelName, prompt, geminiKey);
+    if ('text' in result) {
+      return result.text;
+    }
+    lastFallbackError = result.error;
+    console.warn(`Gemini 모델 ${modelName} 호출 실패(폴백 진행):`, result.error);
+  }
+
+  // 모든 후보 모델이 503 등으로 실패한 경우 친절한 안내 제공
+  throw new Error(
+    '구글 AI 서버에 전 세계 이용자 트래픽이 일시적으로 집중되었습니다 (HTTP 503 일시적 과부하).\n\n' +
+    '구글 데이터센터의 일시적인 혼잡 현상이므로 약 10~30초 후 다시 시도해 주시거나, [설정]에서 LG EXAONE을 선택해 보세요.\n' +
+    `(상세: ${lastFallbackError.slice(0, 150)})`
+  );
 }
 
 /**
@@ -206,14 +257,25 @@ async function callGeminiVisionOcr(params: {
     ],
   };
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
-  if (!res.ok) {
+    if (res.ok) {
+      const data = await res.json();
+      return (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+    }
+
     const errText = await res.text();
+
+    if ((res.status === 503 || res.status === 429) && attempt < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      continue;
+    }
+
     if (
       res.status === 402 ||
       errText.includes('prepayment credits are depleted') ||
@@ -221,6 +283,11 @@ async function callGeminiVisionOcr(params: {
     ) {
       throw new Error(
         'Google AI Studio 선불 크레딧 소진(402): 결제 계정 없는 완전 무료 티어 새 API 키를 Vercel GEMINI_API_KEY에 등록해 주세요.'
+      );
+    }
+    if (res.status === 503 || errText.includes('high demand')) {
+      throw new Error(
+        '구글 AI 비전 서버가 일시적인 이용량 급증(503 과부하) 상태입니다. 약 10~30초 후 다시 시도해 주세요.'
       );
     }
     if (res.status === 404 || errText.includes('is no longer available')) {
@@ -231,8 +298,7 @@ async function callGeminiVisionOcr(params: {
     throw new Error(`Gemini OCR 통신 오류 (${res.status}): ${errText}`);
   }
 
-  const data = await res.json();
-  return (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+  throw new Error('Gemini OCR 호출에 실패했습니다.');
 }
 
 /**
