@@ -253,6 +253,8 @@ body {
 
   input, textarea, select {
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     border: 1px solid var(--line);
     border-radius: 12px;
     padding: 11px 14px;
@@ -261,6 +263,13 @@ body {
     outline: none;
     font-size: 14px;
     transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  input[type="date"] {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    min-height: 42px;
   }
   input:focus, textarea:focus, select:focus {
     border-color: var(--accent);

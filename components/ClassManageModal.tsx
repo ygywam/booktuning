@@ -184,7 +184,7 @@ export default function ClassManageModal({
               <button
                 type="submit"
                 disabled={creating}
-                className="btn btn-primary !py-2 !px-4 !text-xs font-bold whitespace-nowrap"
+                className="!bg-[#1b4332] hover:!bg-[#2d6a4f] !text-white !py-2 !px-4 !text-xs font-bold whitespace-nowrap rounded-xl border-0 cursor-pointer shadow-sm transition"
               >
                 {creating ? '발급 중...' : '개설 (인증코드 자동발급)'}
               </button>
@@ -201,9 +201,10 @@ export default function ClassManageModal({
               <button
                 type="button"
                 onClick={fetchClasses}
-                className="text-[11px] text-stone-500 hover:text-stone-800 underline flex items-center gap-1"
+                className="!bg-stone-100 hover:!bg-stone-200 !text-stone-700 !border !border-stone-300 text-xs font-bold py-1 px-2.5 rounded-lg flex items-center gap-1 cursor-pointer transition shadow-sm"
               >
-                <RefreshCw className="w-3 h-3" /> 새로고침
+                <RefreshCw className="w-3 h-3 text-stone-600" />
+                <span>새로고침</span>
               </button>
             </div>
 
@@ -224,8 +225,9 @@ export default function ClassManageModal({
                       onClick={() => {
                         setActiveTabClassId(cls.id);
                         onSelectClass(cls);
+                        onClose(); // 학급 선택 시 모달 자동 닫힘 (바로 학급 서재로 이동)
                       }}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold border text-left transition flex items-center gap-2 ${
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border text-left transition flex items-center gap-2 cursor-pointer ${
                         isSelected
                           ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-sm'
                           : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-50'
@@ -312,9 +314,9 @@ export default function ClassManageModal({
                                 type="button"
                                 disabled={resettingPinId === st.id}
                                 onClick={() => handleResetPin(st.id, st.name)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-[11px] font-bold transition"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg !bg-rose-50 hover:!bg-rose-100 !text-rose-700 !border !border-rose-300 text-xs font-bold transition cursor-pointer shadow-xs"
                               >
-                                <KeyRound className="w-3 h-3" />
+                                <KeyRound className="w-3.5 h-3.5 text-rose-600" />
                                 <span>{resettingPinId === st.id ? '초기화 중...' : 'PIN 0000 리셋'}</span>
                               </button>
                             </td>

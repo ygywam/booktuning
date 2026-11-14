@@ -397,6 +397,7 @@ export default function Home() {
     }
 
     try {
+      const targetClassId = user?.classId || currentClass?.id || '';
       const res = await fetch('/api/books', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -409,6 +410,8 @@ export default function Home() {
           description: manualDesc.trim(),
           nickname: nickname.trim(),
           userId: user?.id,
+          classId: targetClassId,
+          role: user?.role || 'student',
         }),
       });
       const data = await res.json();
@@ -906,19 +909,14 @@ export default function Home() {
               )}
 
               {nickname || user ? (
-                <>
-                  <button type="button" className="ghost-button" onClick={() => setShowLoginModal(true)}>
-                    👤 {nickname || '내 프로필'}
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    style={{ color: 'var(--danger)', borderColor: '#f2c9c5' }}
-                    onClick={() => handleLogout()}
-                  >
-                    🚪 로그아웃
-                  </button>
-                </>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  style={{ color: 'var(--danger)', borderColor: '#f2c9c5' }}
+                  onClick={() => handleLogout()}
+                >
+                  🚪 로그아웃
+                </button>
               ) : (
                 <button
                   type="button"
@@ -1377,28 +1375,40 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 탭 네비게이션 */}
-            <div className="library-tabs flex-shrink-0" style={{ marginTop: '12px', marginBottom: '14px' }}>
+            {/* 탭 네비게이션: 모바일 가로 잘림 방지 3열 그리드 컨테이너 */}
+            <div className="grid grid-cols-3 gap-1.5 flex-shrink-0 mt-3 mb-3.5 w-full">
               <button
                 type="button"
-                className={`lib-tab-btn ${detailTab === 'timeline' ? 'active' : ''}`}
+                className={`w-full py-2 px-1 text-center rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1 ${
+                  detailTab === 'timeline'
+                    ? '!bg-amber-600 !text-white !border-amber-600 shadow-sm'
+                    : '!bg-stone-100 hover:!bg-stone-200 !text-stone-700 !border-stone-200'
+                }`}
                 onClick={() => setDetailTab('timeline')}
               >
-                📅 타임라인 피드 ({timelineItems.length})
+                <span>📅 피드 ({timelineItems.length})</span>
               </button>
               <button
                 type="button"
-                className={`lib-tab-btn ${detailTab === 'ai' ? 'active' : ''}`}
+                className={`w-full py-2 px-1 text-center rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1 ${
+                  detailTab === 'ai'
+                    ? '!bg-amber-600 !text-white !border-amber-600 shadow-sm'
+                    : '!bg-stone-100 hover:!bg-stone-200 !text-stone-700 !border-stone-200'
+                }`}
                 onClick={() => setDetailTab('ai')}
               >
-                ✨ {activeAiName} 초안
+                <span>✨ AI 감상문</span>
               </button>
               <button
                 type="button"
-                className={`lib-tab-btn ${detailTab === 'my' ? 'active' : ''}`}
+                className={`w-full py-2 px-1 text-center rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1 ${
+                  detailTab === 'my'
+                    ? '!bg-amber-600 !text-white !border-amber-600 shadow-sm'
+                    : '!bg-stone-100 hover:!bg-stone-200 !text-stone-700 !border-stone-200'
+                }`}
                 onClick={() => setDetailTab('my')}
               >
-                ✍️ 나의 감상문
+                <span>✍️ 나의 감상문</span>
               </button>
             </div>
 
@@ -1438,7 +1448,7 @@ export default function Home() {
                   {activeDetailForm === 'log' && (
                     <form
                       onSubmit={handleSubmitInlineLog}
-                      className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 space-y-3 shadow-sm"
+                      className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 space-y-3 shadow-sm w-full max-w-full overflow-hidden"
                     >
                       <div className="flex items-center justify-between pb-1.5 border-b border-amber-200">
                         <span className="text-xs font-bold text-amber-950">📖 진도 및 감상 기록</span>
@@ -1447,18 +1457,18 @@ export default function Home() {
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <label className="block text-xs font-bold text-stone-700">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-full">
+                        <label className="block text-xs font-bold text-stone-700 w-full max-w-full overflow-hidden">
                           읽은 날짜
                           <input
                             type="date"
                             value={inlineLogDate}
                             onChange={(e) => setInlineLogDate(e.target.value)}
-                            className="mt-1 w-full"
+                            className="mt-1 w-full max-w-full box-border rounded-xl px-3 py-2 text-xs sm:text-sm border border-stone-300 bg-white"
                             required
                           />
                         </label>
-                        <label className="block text-xs font-bold text-stone-700">
+                        <label className="block text-xs font-bold text-stone-700 w-full max-w-full overflow-hidden">
                           현재까지 누적 페이지
                           <input
                             type="number"
@@ -1467,20 +1477,20 @@ export default function Home() {
                             placeholder={`예: ${(activeDetailBook.readPages || 0) + 10}`}
                             value={inlineLogPage}
                             onChange={(e) => setInlineLogPage(e.target.value)}
-                            className="mt-1 w-full"
+                            className="mt-1 w-full max-w-full box-border rounded-xl px-3 py-2 text-xs sm:text-sm border border-stone-300 bg-white"
                             required
                           />
                         </label>
                       </div>
 
-                      <label className="block text-xs font-bold text-stone-700">
+                      <label className="block text-xs font-bold text-stone-700 w-full max-w-full">
                         감상 및 요약 메모
                         <textarea
                           rows={3}
                           value={inlineLogContent}
                           onChange={(e) => setInlineLogContent(e.target.value)}
                           placeholder="오늘 읽은 분량의 생각이나 느낌을 자유롭게 적어보세요..."
-                          className="mt-1 w-full"
+                          className="mt-1 w-full max-w-full box-border rounded-xl px-3 py-2 text-xs sm:text-sm border border-stone-300 bg-white"
                           required
                         />
                       </label>
@@ -1508,32 +1518,32 @@ export default function Home() {
                   {activeDetailForm === 'insight' && (
                     <form
                       onSubmit={handleSubmitInlineInsight}
-                      className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200/90 space-y-3 shadow-sm"
+                      className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200/90 space-y-3 shadow-sm w-full max-w-full overflow-hidden"
                     >
                       <div className="flex items-center justify-between pb-1.5 border-b border-emerald-200">
                         <span className="text-xs font-bold text-emerald-950">💡 감명 깊은 문장 수집</span>
                         <span className="text-[11px] text-stone-500 font-medium">본문 사진 첨부 지원</span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <label className="block text-xs font-bold text-stone-700">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-full">
+                        <label className="block text-xs font-bold text-stone-700 w-full max-w-full overflow-hidden">
                           수집 날짜
                           <input
                             type="date"
                             value={inlineInsightDate}
                             onChange={(e) => setInlineInsightDate(e.target.value)}
-                            className="mt-1 w-full"
+                            className="mt-1 w-full max-w-full box-border rounded-xl px-3 py-2 text-xs sm:text-sm border border-stone-300 bg-white"
                             required
                           />
                         </label>
-                        <label className="block text-xs font-bold text-stone-700">
+                        <label className="block text-xs font-bold text-stone-700 w-full max-w-full overflow-hidden">
                           해당 페이지 번호
                           <input
                             type="text"
                             placeholder="예: 42 또는 105-108"
                             value={inlineInsightPage}
                             onChange={(e) => setInlineInsightPage(e.target.value)}
-                            className="mt-1 w-full"
+                            className="mt-1 w-full max-w-full box-border rounded-xl px-3 py-2 text-xs sm:text-sm border border-stone-300 bg-white"
                           />
                         </label>
                       </div>
