@@ -158,3 +158,9 @@
 - [x] 상세 모달 내부 타임라인 피드 아이템에도 개별 공감 버튼 탑재
 - [x] 모바일 iOS Safari `input[type="date"]` 가로 폭 삐져나옴 버그 전역 CSS 방어
 - [x] `v4.4.3` 버전 bump, 동적 buildId(`build-v4.4.3-timestamp`) 갱신 및 19개 라우트 프로덕션 빌드 100% 무결성 검증 완료
+
+## 18단계: 학생 설정 노션 링크 차단·AI 모달 불필요 설명 제거·Gemini 2.5 Flash 가성비 최적화 (완료)
+- [x] 학생 환경 설정 모달 내 '노션 데이터베이스 직접 열기 ↗' 링크 완전 차단 (`isTeacher` 권한 제어 적용)
+- [x] 환경 설정 모달 AI 엔진 선택 섹션 내 불필요한 Vercel 환경변수 등록 안내 문구 제거
+- [x] 구글 제미나이 기본 모델을 최신 가성비 표준 `gemini-2.5-flash`로 확정 적용 (`lib/ai.ts`, `.env.example`)
+- [x] `v4.4.4` 버전 bump 및 동적 buildId(`build-v4.4.4-timestamp`) 적용 완료

@@ -13,6 +13,7 @@ interface AppInfoModalsProps {
   onChangeAiProvider: (p: AiProvider) => void;
   aiStatus: AiStatusInfo | null;
   notionPageUrl?: string;
+  isTeacher?: boolean;
   showSettingsModal: boolean;
   setShowSettingsModal: (v: boolean) => void;
   showDevLogModal: boolean;
@@ -35,6 +36,7 @@ export default function AppInfoModals({
   onChangeAiProvider,
   aiStatus,
   notionPageUrl,
+  isTeacher = false,
   showSettingsModal,
   setShowSettingsModal,
   showDevLogModal,
@@ -140,9 +142,6 @@ export default function AppInfoModals({
                     </div>
                   </button>
                 </div>
-                <p className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
-                  ※ Vercel 환경변수에 <code>GEMINI_API_KEY</code> 또는 <code>EXAONE_API_KEY</code>를 등록해 사용합니다.
-                </p>
               </div>
 
               {/* 도서 검색 엔진 선택 (알라딘/네이버 서비스 종료 고지 및 비활성화) */}
@@ -207,8 +206,8 @@ export default function AppInfoModals({
                 </div>
               </div>
 
-              {/* 노션 데이터베이스 바로가기 */}
-              {notionPageUrl && (
+              {/* 노션 데이터베이스 바로가기 (교사 전용) */}
+              {isTeacher && notionPageUrl && (
                 <div className="pt-2 border-t border-stone-200 flex justify-end">
                   <a
                     href={notionPageUrl}

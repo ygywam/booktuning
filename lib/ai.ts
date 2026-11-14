@@ -2,7 +2,7 @@ export type AiProvider = 'gemini' | 'exaone';
 
 // AI 모델 상수 일원화 관리 (환경변수로 재정의 가능)
 export const AI_MODELS = {
-  gemini: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+  gemini: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
   exaone: process.env.EXAONE_MODEL || 'k-exaone_v2.5',
   exaoneVision: process.env.EXAONE_VISION_MODEL || '',
 } as const;

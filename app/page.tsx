@@ -1971,6 +1971,7 @@ export default function Home() {
         onChangeAiProvider={changeAiProvider}
         aiStatus={aiStatus}
         notionPageUrl={process.env.NEXT_PUBLIC_NOTION_DATABASE_URL}
+        isTeacher={user?.role === 'teacher'}
         showSettingsModal={showSettingsModal}
         setShowSettingsModal={setShowSettingsModal}
         showDevLogModal={showDevLogModal}
