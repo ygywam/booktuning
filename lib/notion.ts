@@ -16,24 +16,33 @@ export const CLASS_DB_ID = process.env.NOTION_CLASS_DB_ID || '';
 
 /**
  * 초대코드를 기반으로 학급 DB에서 학급(Classroom) 정보를 조회하는 헬퍼 함수
+ * (하이픈 유무 무관: BT-7821, BT7821 등 모두 지원)
  */
 export async function findClassByCode(code: string): Promise<{ id: string; name: string; code: string; teacherId?: string } | null> {
   if (!CLASS_DB_ID || !code) return null;
   try {
+    const rawCode = code.trim().toUpperCase();
+    const stripped = rawCode.replace(/[^A-Z0-9]/g, '');
+    const hyphenated = stripped.length === 6 ? `${stripped.slice(0, 2)}-${stripped.slice(2)}` : rawCode;
+
+    // 원본, 하이픈 제거, 하이픈 추가된 후보 목록 구성
+    const candidates = Array.from(new Set([rawCode, stripped, hyphenated])).filter(Boolean);
+    const orFilters = candidates.map((c) => ({
+      property: '초대코드',
+      rich_text: {
+        equals: c,
+      },
+    }));
+
     const res = await notion.databases.query({
       database_id: CLASS_DB_ID,
-      filter: {
-        property: '초대코드',
-        rich_text: {
-          equals: code.trim().toUpperCase(),
-        },
-      },
-      page_size: 1,
+      filter: orFilters.length === 1 ? orFilters[0] : ({ or: orFilters } as any),
+      page_size: 5,
     });
     if (res.results && res.results.length > 0) {
       const page: any = res.results[0];
       const name = page.properties['학급명']?.title?.[0]?.plain_text || '학급';
-      const cCode = page.properties['초대코드']?.rich_text?.[0]?.plain_text || code;
+      const cCode = page.properties['초대코드']?.rich_text?.[0]?.plain_text || hyphenated;
       const teacherId = page.properties['담당교사']?.relation?.[0]?.id;
       return { id: page.id, name, code: cCode, teacherId };
     }

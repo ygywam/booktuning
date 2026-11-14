@@ -47,6 +47,18 @@ export function LandingGate({
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // 학급 초대코드 입력 시 6자리 자동 포맷팅 (예: BT7821 입력 시 BT-7821로 자동 변환)
+  const handleClassCodeChange = (val: string) => {
+    const raw = val.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (raw.length <= 2) {
+      setClassCodeInput(raw);
+    } else if (raw.length <= 6) {
+      setClassCodeInput(`${raw.slice(0, 2)}-${raw.slice(2)}`);
+    } else {
+      setClassCodeInput(`${raw.slice(0, 2)}-${raw.slice(2, 6)}`);
+    }
+  };
+
   useEffect(() => {
     setNameInput(initialNickname);
     setPinInput(initialPin);
@@ -237,14 +249,14 @@ export function LandingGate({
                   setRole('student');
                   setErrorMsg('');
                 }}
-                className={`px-4 py-1.5 rounded-full border transition flex items-center gap-1.5 font-semibold ${
+                className={`px-4 py-2 rounded-full border transition flex items-center gap-1.5 font-bold cursor-pointer ${
                   role === 'student'
-                    ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
-                    : 'border-white/20 text-white/60 hover:text-white'
+                    ? '!bg-sky-500/30 !border-sky-400 !text-sky-100 shadow-md ring-1 ring-sky-400/40'
+                    : '!bg-white/5 !border-white/20 !text-white/70 hover:!text-white'
                 }`}
               >
-                <UserCheck className="w-3.5 h-3.5" />
-                <span>🧑‍🎓 학생 {mode === 'register' ? '가입' : ''}</span>
+                <UserCheck className="w-4 h-4 text-sky-300" />
+                <span>🧑‍🎓 학생 {mode === 'register' ? '가입' : '입장'}</span>
               </button>
               <button
                 type="button"
@@ -252,14 +264,14 @@ export function LandingGate({
                   setRole('teacher');
                   setErrorMsg('');
                 }}
-                className={`px-4 py-1.5 rounded-full border transition flex items-center gap-1.5 font-semibold ${
+                className={`px-4 py-2 rounded-full border transition flex items-center gap-1.5 font-bold cursor-pointer ${
                   role === 'teacher'
-                    ? 'bg-amber-500/20 border-amber-400 text-amber-300'
-                    : 'border-white/20 text-white/60 hover:text-white'
+                    ? '!bg-amber-500/30 !border-amber-400 !text-amber-100 shadow-md ring-1 ring-amber-400/40'
+                    : '!bg-white/5 !border-white/20 !text-white/70 hover:!text-white'
                 }`}
               >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>👩‍🏫 교사 {mode === 'register' ? '가입' : ''}</span>
+                <ShieldCheck className="w-4 h-4 text-amber-300" />
+                <span>👩‍🏫 교사 {mode === 'register' ? '가입' : '입장'}</span>
               </button>
             </div>
 
@@ -295,9 +307,9 @@ export function LandingGate({
                       학급 인증코드 (6자리) <span className="text-red-500">*</span>
                       <input
                         type="text"
-                        placeholder="예: BT-7821 (선생님이 알려주신 코드)"
+                        placeholder="예: BT-7821 (하이픈 자동 완성)"
                         value={classCodeInput}
-                        onChange={(e) => setClassCodeInput(e.target.value.toUpperCase())}
+                        onChange={(e) => handleClassCodeChange(e.target.value)}
                         className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 font-mono tracking-wider focus:border-emerald-600 focus:outline-none"
                         required
                       />
@@ -325,7 +337,7 @@ export function LandingGate({
                       학번 <span className="text-red-500">*</span>
                       <input
                         type="text"
-                        placeholder="예: 30215 (3학년 2반 15번)"
+                        placeholder="예: 30215 (숫자 5자리)"
                         value={studentNumInput}
                         onChange={(e) => setStudentNumInput(e.target.value)}
                         className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none"
@@ -339,7 +351,7 @@ export function LandingGate({
                     이름 <span className="text-red-500">*</span>
                     <input
                       type="text"
-                      placeholder={role === 'student' ? '예: 김민수' : '선생님 성함 (예: 조용희)'}
+                      placeholder={role === 'student' ? '학생 이름 입력' : '선생님 성함 입력'}
                       value={nameInput}
                       onChange={(e) => setNameInput(e.target.value)}
                       className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none"
@@ -362,12 +374,12 @@ export function LandingGate({
                   </label>
                 </div>
 
-                {/* 제출 버튼 */}
+                {/* 제출 버튼: 명확한 고대비 딥 에메랄드 / 포레스트 그린 버튼 */}
                 <div className="mt-5">
-                  <LiquidButton
+                  <button
                     type="submit"
                     disabled={submitting}
-                    className="w-full justify-center !py-3 text-sm font-bold shadow-lg"
+                    className="w-full justify-center !py-3.5 !px-5 text-sm font-bold shadow-lg rounded-xl flex items-center gap-2 cursor-pointer transition active:scale-[0.99] border-0 !bg-[#1b4332] hover:!bg-[#2d6a4f] !text-white"
                   >
                     <span>
                       {submitting
@@ -377,17 +389,17 @@ export function LandingGate({
                         : '📖 서재로 들어가기'}
                     </span>
                     <ArrowRight className="w-4 h-4 ml-1.5" />
-                  </LiquidButton>
+                  </button>
                 </div>
 
-                {/* 게스트 둘러보기 버튼 */}
-                <div className="mt-3 text-center">
+                {/* 게스트 둘러보기 버튼: 파란 박스 제거, 깔끔한 스톤 버튼 */}
+                <div className="mt-3.5 text-center">
                   <button
                     type="button"
                     onClick={onBrowseGuest}
-                    className="text-xs text-stone-500 hover:text-stone-800 underline transition"
+                    className="w-full !bg-stone-100 hover:!bg-stone-200 !text-stone-700 hover:!text-stone-900 border !border-stone-300 font-bold text-xs !py-2.5 !px-4 rounded-xl transition inline-flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
                   >
-                    👀 로그인 없이 둘러보기 (게스트 모드)
+                    <span>👀 로그인 없이 둘러보기 (게스트 모드)</span>
                   </button>
                 </div>
               </div>
@@ -396,17 +408,31 @@ export function LandingGate({
         </div>
       </div>
 
-      {/* 하단 푸터 바 */}
-      <footer className="relative z-10 w-full py-4 px-4 text-center text-xs text-white/50 border-t border-white/10 flex flex-wrap items-center justify-center gap-3">
-        <span>© {new Date().getFullYear()} {schoolName || '북튜닝'}. All rights reserved.</span>
-        <span>·</span>
-        <button type="button" onClick={onOpenPrivacy} className="hover:text-white underline">
-          개인정보처리방침
-        </button>
-        <span>·</span>
-        <button type="button" onClick={onOpenCopyright} className="hover:text-white underline">
-          저작권 및 레퍼런스 안내
-        </button>
+      {/* 하단 푸터 바: 기록조율사 표기 복원 & 정돈된 링크 배치 */}
+      <footer className="relative z-10 w-full py-5 px-4 text-center text-xs text-white/75 border-t border-white/10 flex flex-col items-center justify-center gap-2">
+        <div className="font-medium text-white/80">
+          © {new Date().getFullYear()} {schoolName || '북튜닝'}. All rights reserved.
+        </div>
+        <div className="text-[11px] text-white/60 font-normal">
+          만든이. 기록조율사 서울외고 조용희 @record_tuner
+        </div>
+        <div className="flex items-center justify-center gap-3 pt-1">
+          <button
+            type="button"
+            onClick={onOpenPrivacy}
+            className="!bg-transparent !p-0 !text-white/70 hover:!text-white underline text-xs cursor-pointer border-0"
+          >
+            개인정보처리방침
+          </button>
+          <span className="text-white/30">·</span>
+          <button
+            type="button"
+            onClick={onOpenCopyright}
+            className="!bg-transparent !p-0 !text-white/70 hover:!text-white underline text-xs cursor-pointer border-0"
+          >
+            저작권 및 레퍼런스 안내
+          </button>
+        </div>
       </footer>
     </div>
   );

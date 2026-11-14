@@ -1112,7 +1112,7 @@ export default function Home() {
                 활동 닉네임
                 <input
                   type="text"
-                  placeholder="예: 조용희"
+                  placeholder="닉네임 입력"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   className="mt-1 w-full"
@@ -1332,7 +1332,7 @@ export default function Home() {
             </div>
 
             {/* 탭 네비게이션 */}
-            <div className="library-tabs" style={{ marginTop: '12px', marginBottom: '14px' }}>
+            <div className="library-tabs flex-shrink-0" style={{ marginTop: '12px', marginBottom: '14px' }}>
               <button
                 type="button"
                 className={`lib-tab-btn ${detailTab === 'timeline' ? 'active' : ''}`}
@@ -1356,207 +1356,213 @@ export default function Home() {
               </button>
             </div>
 
-            {/* 탭 1. 통합 타임라인 피드 + 인라인 작성 폼 */}
-            {detailTab === 'timeline' && (
-              <div className="space-y-4">
-                {checkIsOwner(activeDetailBook) && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className={`text-xs px-3.5 py-2 rounded-xl font-bold border transition ${
-                        activeDetailForm === 'log'
-                          ? 'bg-amber-800 text-white border-amber-800 shadow-sm'
-                          : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-50'
-                      }`}
-                      onClick={() => setActiveDetailForm((prev) => (prev === 'log' ? 'none' : 'log'))}
-                    >
-                      {activeDetailForm === 'log' ? '✕ 진도 작성 닫기' : '＋ 진도 기록 남기기'}
-                    </button>
-                    <button
-                      type="button"
-                      className={`text-xs px-3.5 py-2 rounded-xl font-bold border transition ${
-                        activeDetailForm === 'insight'
-                          ? 'bg-emerald-800 text-white border-emerald-800 shadow-sm'
-                          : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-50'
-                      }`}
-                      onClick={() => setActiveDetailForm((prev) => (prev === 'insight' ? 'none' : 'insight'))}
-                    >
-                      {activeDetailForm === 'insight' ? '✕ 문장수집 닫기' : '＋ 문장 수집 (사진 OCR)'}
-                    </button>
-                  </div>
-                )}
-
-                {/* 인라인 진도 기록 폼 */}
-                {activeDetailForm === 'log' && (
-                  <form
-                    onSubmit={handleSubmitInlineLog}
-                    className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-3"
-                  >
-                    <div className="flex items-center justify-between pb-1 border-b border-amber-200">
-                      <span className="text-xs font-bold text-amber-900">📖 진도 및 감상 기록</span>
-                      <span className="text-[11px] text-stone-500">
-                        전체 {activeDetailBook.totalPages || '?'}쪽 중
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <label className="block text-xs font-bold text-stone-700">
-                        읽은 날짜
-                        <input
-                          type="date"
-                          value={inlineLogDate}
-                          onChange={(e) => setInlineLogDate(e.target.value)}
-                          className="mt-1 w-full"
-                          required
-                        />
-                      </label>
-                      <label className="block text-xs font-bold text-stone-700">
-                        현재까지 누적 페이지
-                        <input
-                          type="number"
-                          min="0"
-                          max={activeDetailBook.totalPages || 9999}
-                          placeholder={`예: ${(activeDetailBook.readPages || 0) + 10}`}
-                          value={inlineLogPage}
-                          onChange={(e) => setInlineLogPage(e.target.value)}
-                          className="mt-1 w-full"
-                          required
-                        />
-                      </label>
-                    </div>
-
-                    <label className="block text-xs font-bold text-stone-700">
-                      감상 및 요약 메모
-                      <textarea
-                        rows={3}
-                        value={inlineLogContent}
-                        onChange={(e) => setInlineLogContent(e.target.value)}
-                        placeholder="오늘 읽은 분량의 생각이나 느낌을 자유롭게 적어보세요..."
-                        className="mt-1 w-full"
-                        required
-                      />
-                    </label>
-
-                    <div className="flex justify-end gap-2 pt-1">
+            {/* 스크롤 가능한 상세 모달 본문 영역 (모바일에서 폼/버튼이 잘리지 않고 부드럽게 스크롤) */}
+            <div className="detail-modal-body flex-1 min-h-0 overflow-y-auto pr-1 pb-6 space-y-4">
+              {/* 탭 1. 통합 타임라인 피드 + 인라인 작성 폼 */}
+              {detailTab === 'timeline' && (
+                <div className="space-y-4">
+                  {checkIsOwner(activeDetailBook) && (
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        className="ghost-button text-xs py-1.5 px-3"
-                        onClick={() => setActiveDetailForm('none')}
+                        className={`text-xs px-3.5 py-2 rounded-xl font-bold border transition cursor-pointer ${
+                          activeDetailForm === 'log'
+                            ? '!bg-amber-600 hover:!bg-amber-700 !text-white !border-amber-600 shadow-sm'
+                            : '!bg-white !text-stone-700 !border-stone-300 hover:!bg-stone-50'
+                        }`}
+                        onClick={() => setActiveDetailForm((prev) => (prev === 'log' ? 'none' : 'log'))}
                       >
-                        취소
+                        {activeDetailForm === 'log' ? '✕ 진도 작성 닫기' : '＋ 진도 기록 남기기'}
                       </button>
-                      <button type="submit" disabled={submittingInlineLog} className="text-xs py-1.5 px-4 font-bold">
-                        {submittingInlineLog ? '저장 중...' : '기록 저장'}
+                      <button
+                        type="button"
+                        className={`text-xs px-3.5 py-2 rounded-xl font-bold border transition cursor-pointer ${
+                          activeDetailForm === 'insight'
+                            ? '!bg-emerald-600 hover:!bg-emerald-700 !text-white !border-emerald-600 shadow-sm'
+                            : '!bg-white !text-stone-700 !border-stone-300 hover:!bg-stone-50'
+                        }`}
+                        onClick={() => setActiveDetailForm((prev) => (prev === 'insight' ? 'none' : 'insight'))}
+                      >
+                        {activeDetailForm === 'insight' ? '✕ 문장수집 닫기' : '＋ 문장 수집 (사진 OCR)'}
                       </button>
                     </div>
-                  </form>
-                )}
+                  )}
 
-                {/* 인라인 문장 수집 폼 (사진 OCR 탑재) */}
-                {activeDetailForm === 'insight' && (
-                  <form
-                    onSubmit={handleSubmitInlineInsight}
-                    className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-3"
-                  >
-                    <div className="flex items-center justify-between pb-1 border-b border-emerald-200">
-                      <span className="text-xs font-bold text-emerald-950">💡 감명 깊은 문장 수집</span>
-                      <span className="text-[11px] text-stone-500">본문 사진 첨부 지원</span>
-                    </div>
+                  {/* 인라인 진도 기록 폼 */}
+                  {activeDetailForm === 'log' && (
+                    <form
+                      onSubmit={handleSubmitInlineLog}
+                      className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 space-y-3 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between pb-1.5 border-b border-amber-200">
+                        <span className="text-xs font-bold text-amber-950">📖 진도 및 감상 기록</span>
+                        <span className="text-[11px] text-stone-500 font-medium">
+                          전체 {activeDetailBook.totalPages || '?'}쪽 중
+                        </span>
+                      </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label className="block text-xs font-bold text-stone-700">
+                          읽은 날짜
+                          <input
+                            type="date"
+                            value={inlineLogDate}
+                            onChange={(e) => setInlineLogDate(e.target.value)}
+                            className="mt-1 w-full"
+                            required
+                          />
+                        </label>
+                        <label className="block text-xs font-bold text-stone-700">
+                          현재까지 누적 페이지
+                          <input
+                            type="number"
+                            min="0"
+                            max={activeDetailBook.totalPages || 9999}
+                            placeholder={`예: ${(activeDetailBook.readPages || 0) + 10}`}
+                            value={inlineLogPage}
+                            onChange={(e) => setInlineLogPage(e.target.value)}
+                            className="mt-1 w-full"
+                            required
+                          />
+                        </label>
+                      </div>
+
                       <label className="block text-xs font-bold text-stone-700">
-                        수집 날짜
-                        <input
-                          type="date"
-                          value={inlineInsightDate}
-                          onChange={(e) => setInlineInsightDate(e.target.value)}
+                        감상 및 요약 메모
+                        <textarea
+                          rows={3}
+                          value={inlineLogContent}
+                          onChange={(e) => setInlineLogContent(e.target.value)}
+                          placeholder="오늘 읽은 분량의 생각이나 느낌을 자유롭게 적어보세요..."
                           className="mt-1 w-full"
                           required
                         />
                       </label>
-                      <label className="block text-xs font-bold text-stone-700">
-                        해당 페이지 번호
-                        <input
-                          type="text"
-                          placeholder="예: 42 또는 105-108"
-                          value={inlineInsightPage}
-                          onChange={(e) => setInlineInsightPage(e.target.value)}
-                          className="mt-1 w-full"
-                        />
-                      </label>
-                    </div>
 
-                    <div className="p-3 bg-white rounded-xl border border-emerald-200 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-emerald-900">
-                          📷 페이지 또는 필기 사진 첨부 (AI OCR)
-                        </span>
-                        {inlineInsightOcrLoading && (
-                          <span className="text-xs text-emerald-700 font-bold animate-pulse">
-                            텍스트 판독 중...
+                      <div className="flex justify-end gap-2 pt-2 pb-1 border-t border-amber-200/60 mt-3">
+                        <button
+                          type="button"
+                          className="!bg-stone-100 hover:!bg-stone-200 !text-stone-700 !border !border-stone-300 text-xs py-2 px-3.5 rounded-xl font-bold transition cursor-pointer"
+                          onClick={() => setActiveDetailForm('none')}
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submittingInlineLog}
+                          className="!bg-amber-600 hover:!bg-amber-700 !text-white text-xs py-2 px-4.5 rounded-xl font-bold transition shadow-sm cursor-pointer"
+                        >
+                          {submittingInlineLog ? '저장 중...' : '기록 저장'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* 인라인 문장 수집 폼 (사진 OCR 탑재) */}
+                  {activeDetailForm === 'insight' && (
+                    <form
+                      onSubmit={handleSubmitInlineInsight}
+                      className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200/90 space-y-3 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between pb-1.5 border-b border-emerald-200">
+                        <span className="text-xs font-bold text-emerald-950">💡 감명 깊은 문장 수집</span>
+                        <span className="text-[11px] text-stone-500 font-medium">본문 사진 첨부 지원</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label className="block text-xs font-bold text-stone-700">
+                          수집 날짜
+                          <input
+                            type="date"
+                            value={inlineInsightDate}
+                            onChange={(e) => setInlineInsightDate(e.target.value)}
+                            className="mt-1 w-full"
+                            required
+                          />
+                        </label>
+                        <label className="block text-xs font-bold text-stone-700">
+                          해당 페이지 번호
+                          <input
+                            type="text"
+                            placeholder="예: 42 또는 105-108"
+                            value={inlineInsightPage}
+                            onChange={(e) => setInlineInsightPage(e.target.value)}
+                            className="mt-1 w-full"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="p-3 bg-white rounded-xl border border-emerald-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-emerald-900">
+                            📷 페이지 또는 필기 사진 첨부 (AI OCR)
                           </span>
+                          {inlineInsightOcrLoading && (
+                            <span className="text-xs text-emerald-700 font-bold animate-pulse">
+                              텍스트 판독 중...
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            runOcrFromFile(file, setInlineInsightOcrLoading, setInlineInsightImageUrl, (ocrText) => {
+                              setInlineInsightQuote((prev) => (prev ? `${prev}\n\n${ocrText}` : ocrText));
+                            });
+                          }}
+                          className="text-xs w-full"
+                        />
+                        {inlineInsightImageUrl && (
+                          <div className="flex items-center gap-2 pt-1">
+                            <img
+                              src={inlineInsightImageUrl}
+                              alt="첨부 미리보기"
+                              className="w-14 h-14 object-cover rounded border"
+                            />
+                            <button
+                              type="button"
+                              className="!bg-stone-100 hover:!bg-stone-200 !text-stone-700 !border !border-stone-300 text-xs py-1 px-2.5 rounded-lg cursor-pointer font-medium"
+                              onClick={() => setInlineInsightImageUrl('')}
+                            >
+                              사진 삭제
+                            </button>
+                          </div>
                         )}
                       </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          runOcrFromFile(file, setInlineInsightOcrLoading, setInlineInsightImageUrl, (ocrText) => {
-                            setInlineInsightQuote((prev) => (prev ? `${prev}\n\n${ocrText}` : ocrText));
-                          });
-                        }}
-                        className="text-xs w-full"
-                      />
-                      {inlineInsightImageUrl && (
-                        <div className="flex items-center gap-2 pt-1">
-                          <img
-                            src={inlineInsightImageUrl}
-                            alt="첨부 미리보기"
-                            className="w-14 h-14 object-cover rounded border"
-                          />
-                          <button
-                            type="button"
-                            className="ghost-button text-xs py-1 px-2"
-                            onClick={() => setInlineInsightImageUrl('')}
-                          >
-                            사진 삭제
-                          </button>
-                        </div>
-                      )}
-                    </div>
 
-                    <label className="block text-xs font-bold text-stone-700">
-                      발췌 문장 및 생각
-                      <textarea
-                        rows={3}
-                        value={inlineInsightQuote}
-                        onChange={(e) => setInlineInsightQuote(e.target.value)}
-                        placeholder="마음에 와닿은 문장을 직접 적거나 사진을 올려 텍스트를 추출해 보세요..."
-                        className="mt-1 w-full"
-                        required
-                      />
-                    </label>
+                      <label className="block text-xs font-bold text-stone-700">
+                        발췌 문장 및 생각
+                        <textarea
+                          rows={3}
+                          value={inlineInsightQuote}
+                          onChange={(e) => setInlineInsightQuote(e.target.value)}
+                          placeholder="마음에 와닿은 문장을 직접 적거나 사진을 올려 텍스트를 추출해 보세요..."
+                          className="mt-1 w-full"
+                          required
+                        />
+                      </label>
 
-                    <div className="flex justify-end gap-2 pt-1">
-                      <button
-                        type="button"
-                        className="ghost-button text-xs py-1.5 px-3"
-                        onClick={() => setActiveDetailForm('none')}
-                      >
-                        취소
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={submittingInlineInsight}
-                        className="text-xs py-1.5 px-4 font-bold bg-emerald-800 text-white"
-                      >
-                        {submittingInlineInsight ? '수집 중...' : '문장 수집'}
-                      </button>
-                    </div>
-                  </form>
-                )}
+                      <div className="flex justify-end gap-2 pt-2 pb-1 border-t border-emerald-200/60 mt-3">
+                        <button
+                          type="button"
+                          className="!bg-stone-100 hover:!bg-stone-200 !text-stone-700 !border !border-stone-300 text-xs py-2 px-3.5 rounded-xl font-bold transition cursor-pointer"
+                          onClick={() => setActiveDetailForm('none')}
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submittingInlineInsight}
+                          className="!bg-emerald-600 hover:!bg-emerald-700 !text-white text-xs py-2 px-4.5 rounded-xl font-bold transition shadow-sm cursor-pointer"
+                        >
+                          {submittingInlineInsight ? '수집 중...' : '문장 수집'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
 
                 {/* 타임라인 항목 목록 */}
                 {timelineLoading ? (
@@ -1695,6 +1701,7 @@ export default function Home() {
                 </div>
               </div>
             )}
+            </div>
           </div>
         </div>
       )}

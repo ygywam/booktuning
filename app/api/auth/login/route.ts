@@ -154,6 +154,18 @@ export async function POST(request: Request) {
 
       const userPage: any = queryRes.results[0];
       const props = userPage.properties;
+
+      // [교사 권한 엄격 검증]
+      // 노션 사용자 데이터베이스의 '역할' 속성이 'teacher' 또는 '교사'로 설정되어 있는지 철저히 검증
+      const rawRole = props['역할']?.select?.name || props['역할']?.status?.name || props['역할']?.rich_text?.[0]?.plain_text || '';
+      const cleanRoleLower = rawRole.trim().toLowerCase();
+      if (cleanRoleLower !== 'teacher' && cleanRoleLower !== '교사') {
+        return NextResponse.json({
+          ok: false,
+          error: `선생님(교사) 권한이 부여되지 않은 계정입니다. 노션 사용자 데이터베이스에서 계정의 '역할'을 [teacher]로 지정한 후 로그인해 주세요.`,
+        }, { status: 403 });
+      }
+
       const storedPin = props['PIN']?.rich_text?.[0]?.plain_text || '0000';
 
       if (storedPin && cleanPin && storedPin !== cleanPin) {

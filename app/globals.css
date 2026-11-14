@@ -809,6 +809,15 @@ p {
   overflow: hidden;
 }
 
+.detail-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: 24px;
+}
+
 /* 서브 모달 (2단계 팝업) */
 .modal-sub {
   z-index: 10050 !important;
@@ -1046,6 +1055,11 @@ p {
     padding: 18px;
     border-radius: 16px;
     width: 95%;
+  }
+  .detail-modal-card {
+    max-height: 94vh;
+    padding: 16px;
+    width: 96%;
   }
   .detail-modal-card .library-tabs {
     gap: 6px;
