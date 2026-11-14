@@ -205,11 +205,23 @@ export default function Home() {
   };
 
   // 도서 목록 및 글로벌 타임라인 데이터 패치
-  const fetchBooks = async (targetClassId?: string) => {
+  const fetchBooks = async (targetClassId?: string, overrideRole?: string) => {
     setLoading(true);
     try {
-      const cId = targetClassId || (user?.role === 'student' ? user?.classId : currentClass?.id);
-      const url = cId ? `/api/books?classId=${encodeURIComponent(cId)}` : '/api/books';
+      const activeRole = overrideRole || user?.role || 'student';
+      let cId = '';
+      if (activeRole === 'student') {
+        cId = user?.classId || '';
+      } else {
+        // 교사는 명시적으로 전달된 classId가 있거나, 선택된 학급이 있으면 그 학급, 없으면 교사 모임('teachers')
+        cId = targetClassId !== undefined ? targetClassId : (currentClass?.id || 'teachers');
+      }
+
+      const params = new URLSearchParams();
+      if (cId) params.set('classId', cId);
+      if (activeRole) params.set('role', activeRole);
+
+      const url = `/api/books?${params.toString()}`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.ok) {
@@ -809,32 +821,59 @@ export default function Home() {
                   : `책을 읽고 기록하며 내 삶과 생각의 주파수를 맞춰가는 ${schoolName ? `${schoolName} ` : ''}공간입니다.`}
               </p>
 
-              {/* 학급 상태 배너 */}
+              {/* 학급 상태 및 교사/학생 서재 전환 배너 */}
               {user && (
-                <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs bg-white/80 border border-stone-200 shadow-sm">
+                <div className="mt-2 inline-flex items-center flex-wrap gap-2 px-3 py-1.5 rounded-full text-xs bg-white/90 border border-stone-200 shadow-sm">
                   {user.role === 'teacher' ? (
-                    <>
-                      <span className="font-bold text-amber-900">👩‍🏫 교사 모드</span>
-                      <span className="text-stone-300">|</span>
-                      <span className="text-stone-700">
-                        선택 학급: <strong>{currentClass?.name || '학급을 선택해 주세요'}</strong>
-                      </span>
-                      {currentClass?.code && (
-                        <span className="font-mono text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded text-[11px] font-bold">
-                          초대코드: {currentClass.code}
+                    currentClass ? (
+                      <>
+                        <span className="font-bold text-amber-900">👩‍🏫 교사 독서지도</span>
+                        <span className="text-stone-300">|</span>
+                        <span className="text-stone-700">
+                          현재 학급: <strong className="text-emerald-800">{currentClass.name}</strong> 학생 서재
                         </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setShowClassModal(true)}
-                        className="text-amber-800 underline font-bold ml-1 hover:text-amber-950"
-                      >
-                        [학급 관리]
-                      </button>
-                    </>
+                        {currentClass.code && (
+                          <span className="font-mono text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded text-[11px] font-bold">
+                            코드: {currentClass.code}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCurrentClass(null);
+                            fetchBooks('teachers');
+                          }}
+                          className="!bg-amber-100 hover:!bg-amber-200 !text-amber-900 border !border-amber-300 text-[11px] font-bold py-1 px-2.5 rounded-lg transition cursor-pointer"
+                        >
+                          📚 교사 모임 서재로
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowClassModal(true)}
+                          className="!bg-stone-100 hover:!bg-stone-200 !text-stone-700 border !border-stone-300 text-[11px] font-bold py-1 px-2 rounded-lg transition cursor-pointer"
+                        >
+                          ⚙️ 학급 관리
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-bold text-amber-900">👩‍🏫 교사 독서모임</span>
+                        <span className="text-stone-300">|</span>
+                        <span className="text-stone-700 font-medium">
+                          교사 간 등록 도서 열람 중
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowClassModal(true)}
+                          className="!bg-emerald-600 hover:!bg-emerald-700 !text-white text-[11px] font-bold py-1 px-2.5 rounded-lg transition shadow-sm cursor-pointer"
+                        >
+                          🏫 학급 학생 서재 보기
+                        </button>
+                      </>
+                    )
                   ) : (
                     <>
-                      <span className="font-bold text-emerald-800">🧑‍🎓 학생 서재</span>
+                      <span className="font-bold text-emerald-800">🧑‍🎓 우리 반 독서공간</span>
                       <span className="text-stone-300">|</span>
                       <span className="text-stone-700">
                         소속: <strong>{user.className || '우리 반'}</strong> {user.studentNumber ? `(${user.studentNumber})` : ''}
@@ -1003,6 +1042,13 @@ export default function Home() {
                 myBooks={myBooks}
                 loading={loading}
                 currentUserNickname={nickname}
+                communityLabel={
+                  user?.role === 'student'
+                    ? `${user.className || '우리 반'} 서재`
+                    : currentClass
+                    ? `${currentClass.name} 학생 서재`
+                    : '교사 독서모임 서재'
+                }
                 onSelectBook={openDetail}
                 onOpenManualBook={handleOpenManualBook}
               />

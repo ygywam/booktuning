@@ -12,6 +12,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const targetClassId = searchParams.get('classId');
+    const role = searchParams.get('role'); // 'student' | 'teacher'
 
     // 도서 목록 가져오기 (아카이브되지 않은 도서들)
     const bookResponse = await notion.databases.query({
@@ -114,10 +115,24 @@ export async function GET(request: Request) {
       };
     });
 
-    // 학급 격리 필터: targetClassId가 명시되어 있고, 책들에 classId가 설정된 경우 해당 학급 도서만 필터링
-    const filteredBooks = targetClassId && targetClassId !== 'all'
-      ? books.filter((b) => !b.classId || b.classId === targetClassId)
-      : books;
+    // 권한 및 학급별 도서 완전 분리 격리 정책:
+    // 1) 특정 학급 조회(학생 또는 교사의 학급지도): 오직 해당 학급 소속 학생들의 도서만 반환 (교사 도서 혼입 절대 차단)
+    // 2) 교사 독서모임 조회(classId === 'teachers' 또는 role === 'teacher' & !classId): 학급에 속하지 않은 순수 교사 도서만 반환
+    let filteredBooks = books;
+
+    if (targetClassId && targetClassId !== 'all' && targetClassId !== 'teachers') {
+      // 해당 학급의 도서만 엄격 필터링 (학생들에게 교사 책 노출 방지)
+      filteredBooks = books.filter((b) => b.classId === targetClassId);
+    } else if (targetClassId === 'teachers') {
+      // 순수 교사 모임 도서만 필터링
+      filteredBooks = books.filter((b) => !b.classId);
+    } else if (role === 'student' && !targetClassId) {
+      // 학생인데 학급 ID가 없는 경우 빈 목록
+      filteredBooks = [];
+    } else if (role === 'teacher' && !targetClassId) {
+      // 교사인데 선택된 학급이 없는 경우: 기본적으로 교사 독서모임 도서 제공
+      filteredBooks = books.filter((b) => !b.classId);
+    }
 
     return NextResponse.json({ ok: true, books: filteredBooks });
   } catch (error: any) {

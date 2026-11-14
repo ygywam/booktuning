@@ -168,7 +168,7 @@ export function LandingGate({
               {schoolName ? `${schoolName} BOOK TUNING` : 'BOOK TUNING'}
             </span>
             <span className="text-[11px] text-white/55">
-              {schoolName ? `${schoolName} 독서 서재` : '노션 공유 독서 아틀리에'} · v4.4
+              {schoolName ? `${schoolName} 독서 서재` : '노션 공유 독서 아틀리에'} · v4.4.1
             </span>
           </div>
         </div>

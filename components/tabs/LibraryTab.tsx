@@ -8,6 +8,7 @@ interface LibraryTabProps {
   myBooks: Book[];
   loading: boolean;
   currentUserNickname: string;
+  communityLabel?: string;
   onSelectBook: (book: Book) => void;
   onOpenManualBook: () => void;
 }
@@ -20,6 +21,7 @@ export default function LibraryTab({
   myBooks,
   loading,
   currentUserNickname,
+  communityLabel,
   onSelectBook,
   onOpenManualBook,
 }: LibraryTabProps) {
@@ -162,7 +164,7 @@ export default function LibraryTab({
               setHoveredIdx(null);
             }}
           >
-            구성원 전체 서재 ({books.length})
+            {communityLabel || '구성원 전체 서재'} ({books.length})
           </button>
         </div>
 
