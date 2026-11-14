@@ -46,3 +46,4 @@
 - [x] Google Gemini 402(선불 크레딧 소진) 친절 해결 가이드 및 LG EXAONE 미연결 뱃지·API 호출 방어 로직 확인
 - [x] 구글 공식 최신 표준 모델 gemini-3.8-flash 적용 및 LG EXAONE 429 Rate Limit 백오프 자동 재시도 로직 확인
 - [x] Gemini 503(일시적 과부하) 자동 재시도 및 gemini-3.7-flash 자동 폴백 체인 구축 확인
+- [x] Gemini 3.7 Flash 우선 가동 및 504 타임아웃 방어·프론트엔드 안전 파싱(Unexpected token 방어) 확인

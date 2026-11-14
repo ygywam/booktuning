@@ -190,3 +190,9 @@
 - [x] Gemini 다중 모델 자동 폴백 체인 구축 (`gemini-3.8-flash` 과부하 시 `gemini-3.7-flash`로 즉시 무중단 자동 전환)
 - [x] 비전 OCR에도 503 재시도 및 친절 안내 적용
 - [x] `v4.4.8` 버전 bump 및 동적 buildId(`build-v4.4.8-timestamp`) 적용 완료
+
+## 23단계: Gemini 3.7 Flash 우선 가동·초고속 무대기 폴백·프론트엔드 안전 파싱 (완료)
+- [x] 구글 서버 과부하가 심한 3.8 대신 현재 가장 안정적이고 빠른 `gemini-3.7-flash`를 1순위 모델로 확정
+- [x] 503 감지 시 불필요한 슬립 대기를 제거하고 0초 즉시 폴백(Fast Fallback)으로 전환하여 Vercel 10초 타임아웃(504) 원천 차단
+- [x] 프론트엔드(`app/page.tsx`) `rawText` 안전 파싱: Vercel HTML 응답 시 `Unexpected token 'A'` 파싱 에러 방어 및 친절 에러 팝업 보장
+- [x] `v4.4.9` 버전 bump 및 동적 buildId(`build-v4.4.9-timestamp`) 적용 완료

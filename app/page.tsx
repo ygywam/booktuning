@@ -895,7 +895,18 @@ export default function Home() {
           aiProvider,
         }),
       });
-      const data = await res.json();
+
+      const rawText = await res.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        if (res.status === 504 || rawText.includes('An error occurred')) {
+          throw new Error('AI 감상문 생성 처리 시간이 지연되었습니다(504). 잠시 후 다시 시도해 주세요.');
+        }
+        throw new Error(`서버 응답 오류 (${res.status}): ${rawText.slice(0, 100)}`);
+      }
+
       if (data.ok && data.aiReport) {
         setAiReport(data.aiReport);
         setMyReport((prev) => (prev ? prev : data.aiReport));

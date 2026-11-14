@@ -2,7 +2,7 @@ export type AiProvider = 'gemini' | 'exaone';
 
 // AI 모델 상수 일원화 관리 (환경변수로 재정의 가능)
 export const AI_MODELS = {
-  gemini: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+  gemini: process.env.GEMINI_MODEL || 'gemini-3.7-flash',
   exaone: process.env.EXAONE_MODEL || 'k-exaone_v2.5',
   exaoneVision: process.env.EXAONE_VISION_MODEL || '',
 } as const;
@@ -38,7 +38,7 @@ function stripThinkingTags(text: string): string {
 }
 
 /**
- * 단일 모델로 Gemini 텍스트 생성 시도 (503/429 시 1회 지수 백오프 재시도 포함)
+ * 단일 모델로 Gemini 텍스트 생성 시도 (과부하 503/404 발생 시 즉시 폴백)
  */
 async function tryGeminiModelOnce(
   modelName: string,
@@ -47,62 +47,53 @@ async function tryGeminiModelOnce(
 ): Promise<{ text: string } | { shouldFallback: boolean; error: string }> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`;
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-      }),
-    });
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+    }),
+  });
 
-    if (res.ok) {
-      const data = await res.json();
-      const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
-      return { text };
-    }
-
-    const errText = await res.text();
-
-    // 503(Service Unavailable / High Demand) 또는 일시적 429: 1차 실패 시 1.5초 대기 후 재시도
-    if ((res.status === 503 || res.status === 429) && attempt < 2) {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      continue;
-    }
-
-    // 402 선불 크레딧 소진
-    if (
-      res.status === 402 ||
-      errText.includes('prepayment credits are depleted') ||
-      errText.includes('RESOURCE_EXHAUSTED')
-    ) {
-      throw new Error(
-        'Google AI Studio 선불 크레딧이 소진되었습니다 (HTTP 402).\n\n' +
-        '해결 방법:\n' +
-        '1. Google AI Studio(https://aistudio.google.com/app/apikey) 접속\n' +
-        '2. 결제 계정(Billing)이 연결되지 않은 완전 무료(Free of charge) 프로젝트를 선택하거나 신규 생성\n' +
-        '3. 새 무료 API 키를 발급받아 Vercel 환경변수 GEMINI_API_KEY에 교체 등록 후 재배포해 주세요.'
-      );
-    }
-
-    // 503 과부하 또는 404 모델 만료: 다음 폴백 모델로 넘길 수 있도록 플래그 반환
-    if (
-      res.status === 503 ||
-      res.status === 404 ||
-      errText.includes('high demand') ||
-      errText.includes('is no longer available')
-    ) {
-      return { shouldFallback: true, error: `[${modelName} (${res.status})] ${errText}` };
-    }
-
-    throw new Error(`Gemini API 통신 오류 (${res.status}): ${errText}`);
+  if (res.ok) {
+    const data = await res.json();
+    const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+    return { text };
   }
 
-  return { shouldFallback: true, error: `[${modelName}] 재시도 실패` };
+  const errText = await res.text();
+
+  // 402 선불 크레딧 소진
+  if (
+    res.status === 402 ||
+    errText.includes('prepayment credits are depleted') ||
+    errText.includes('RESOURCE_EXHAUSTED')
+  ) {
+    throw new Error(
+      'Google AI Studio 선불 크레딧이 소진되었습니다 (HTTP 402).\n\n' +
+      '해결 방법:\n' +
+      '1. Google AI Studio(https://aistudio.google.com/app/apikey) 접속\n' +
+      '2. 결제 계정(Billing)이 연결되지 않은 완전 무료(Free of charge) 프로젝트를 선택하거나 신규 생성\n' +
+      '3. 새 무료 API 키를 발급받아 Vercel 환경변수 GEMINI_API_KEY에 교체 등록 후 재배포해 주세요.'
+    );
+  }
+
+  // 503(High Demand 과부하) 또는 404/429: 지연 없이 즉시 다음 안정 모델로 폴백
+  if (
+    res.status === 503 ||
+    res.status === 404 ||
+    res.status === 429 ||
+    errText.includes('high demand') ||
+    errText.includes('is no longer available')
+  ) {
+    return { shouldFallback: true, error: `[${modelName} (${res.status})] ${errText.slice(0, 120)}` };
+  }
+
+  throw new Error(`Gemini API 통신 오류 (${res.status}): ${errText}`);
 }
 
 /**
- * Gemini 텍스트 생성 호출 (주 모델 + 폴백 모델 체인 & 지수 백오프)
+ * Gemini 텍스트 생성 호출 (빠른 모델 폴백 체인: 3.8 과부하 시 3.7 즉시 전환)
  */
 async function callGeminiText(prompt: string): Promise<string> {
   const geminiKey = process.env.GEMINI_API_KEY;
@@ -110,7 +101,7 @@ async function callGeminiText(prompt: string): Promise<string> {
     throw new Error('서버 환경변수에 GEMINI_API_KEY가 설정되지 않았습니다.');
   }
 
-  // 주 모델 및 폴백 모델 후보 체인
+  // 주 모델 및 안정적 폴백 모델 후보 체인 (중복 제거 및 순서 보장)
   const candidateModels = Array.from(
     new Set([AI_MODELS.gemini, 'gemini-3.7-flash', 'gemini-3.8-flash'].filter(Boolean))
   );
@@ -123,10 +114,10 @@ async function callGeminiText(prompt: string): Promise<string> {
       return result.text;
     }
     lastFallbackError = result.error;
-    console.warn(`Gemini 모델 ${modelName} 호출 실패(폴백 진행):`, result.error);
+    console.warn(`Gemini 모델 ${modelName} 503/과부하 감지 -> 즉시 다음 모델로 전환:`, result.error);
   }
 
-  // 모든 후보 모델이 503 등으로 실패한 경우 친절한 안내 제공
+  // 모든 후보 모델이 실패한 경우 친절한 안내 제공
   throw new Error(
     '구글 AI 서버에 전 세계 이용자 트래픽이 일시적으로 집중되었습니다 (HTTP 503 일시적 과부하).\n\n' +
     '구글 데이터센터의 일시적인 혼잡 현상이므로 약 10~30초 후 다시 시도해 주시거나, [설정]에서 LG EXAONE을 선택해 보세요.\n' +
