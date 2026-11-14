@@ -80,8 +80,8 @@ export default function AppInfoModals({
                       onClick={() => onChangeTheme(t.id)}
                       className={`py-2 px-3 text-xs font-bold rounded-xl border transition ${
                         theme === t.id
-                          ? 'border-amber-700 bg-amber-100 text-amber-900 shadow-sm'
-                          : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'
+                          ? '!bg-stone-900 !text-white !border-stone-900 shadow-md font-extrabold'
+                          : '!bg-white hover:!bg-stone-100 !text-stone-700 !border-stone-300'
                       }`}
                     >
                       {t.name}
@@ -99,20 +99,20 @@ export default function AppInfoModals({
                     onClick={() => onChangeAiProvider('gemini')}
                     className={`p-2.5 text-left rounded-xl border transition flex flex-col justify-between ${
                       aiProvider === 'gemini'
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-950 shadow-sm ring-1 ring-emerald-500'
-                        : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                        ? '!border-emerald-600 !bg-emerald-50 !text-emerald-950 shadow-sm ring-2 ring-emerald-500'
+                        : '!border-stone-200 !bg-white !text-stone-700 hover:!bg-stone-50'
                     }`}
                   >
                     <div>
                       <div className="font-extrabold text-xs flex items-center justify-between">
-                        <span>Google Gemini</span>
+                        <span className="text-stone-900 font-extrabold">Google Gemini</span>
                         {aiStatus?.geminiConfigured && (
-                          <span className="text-[10px] bg-emerald-200/80 text-emerald-900 px-1.5 py-0.5 rounded font-bold">
+                          <span className="text-[10px] bg-emerald-200/90 text-emerald-950 px-1.5 py-0.5 rounded font-bold">
                             연결됨
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-stone-500 mt-0.5">멀티모달 감상문 + 이미지 OCR 표준</p>
+                      <p className="text-[11px] text-stone-600 mt-0.5 font-medium">멀티모달 감상문 + 이미지 OCR 표준</p>
                     </div>
                   </button>
 
@@ -121,15 +121,15 @@ export default function AppInfoModals({
                     onClick={() => onChangeAiProvider('exaone')}
                     className={`p-2.5 text-left rounded-xl border transition flex flex-col justify-between ${
                       aiProvider === 'exaone'
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-950 shadow-sm ring-1 ring-emerald-500'
-                        : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                        ? '!border-emerald-600 !bg-emerald-50 !text-emerald-950 shadow-sm ring-2 ring-emerald-500'
+                        : '!border-stone-200 !bg-white !text-stone-700 hover:!bg-stone-50'
                     }`}
                   >
                     <div>
                       <div className="font-extrabold text-xs flex items-center justify-between">
-                        <span>LG EXAONE</span>
+                        <span className="text-stone-900 font-extrabold">LG EXAONE</span>
                         {aiStatus?.exaoneConfigured ? (
-                          <span className="text-[10px] bg-emerald-200/80 text-emerald-900 px-1.5 py-0.5 rounded font-bold">
+                          <span className="text-[10px] bg-emerald-200/90 text-emerald-950 px-1.5 py-0.5 rounded font-bold">
                             연결됨
                           </span>
                         ) : (
@@ -138,7 +138,7 @@ export default function AppInfoModals({
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-stone-500 mt-0.5">K-EXAONE 2.5 한국어 특화 감상문</p>
+                      <p className="text-[11px] text-stone-600 mt-0.5 font-medium">K-EXAONE 2.5 한국어 특화 감상문</p>
                     </div>
                   </button>
                 </div>
@@ -180,16 +180,16 @@ export default function AppInfoModals({
                         onClick={() => !eng.disabled && onChangeSearchApiType(eng.id as any)}
                         className={`w-full p-2.5 text-left rounded-xl border transition flex flex-col ${
                           eng.disabled
-                            ? 'opacity-50 cursor-not-allowed bg-stone-100 border-stone-200 text-stone-400'
+                            ? '!opacity-50 cursor-not-allowed !bg-stone-100 !border-stone-200 !text-stone-400'
                             : isSelected
-                            ? 'border-amber-700 bg-amber-50 text-amber-950 shadow-sm ring-1 ring-amber-600'
-                            : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
+                            ? '!border-amber-600 !bg-amber-50/90 !text-amber-950 shadow-sm ring-2 ring-amber-500'
+                            : '!border-stone-200 !bg-white !text-stone-700 hover:!bg-stone-50'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-1 w-full">
-                          <span className="font-extrabold text-xs">{eng.title}</span>
+                          <span className={`font-extrabold text-xs ${isSelected ? '!text-amber-950' : '!text-stone-900'}`}>{eng.title}</span>
                           {eng.isStandard && (
-                            <span className="text-[10px] bg-amber-200/80 text-amber-900 font-bold px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] bg-amber-200 text-amber-950 font-bold px-1.5 py-0.5 rounded">
                               표준
                             </span>
                           )}
@@ -199,7 +199,7 @@ export default function AppInfoModals({
                             </span>
                           )}
                         </div>
-                        <span className="text-[11px] text-stone-500 mt-0.5 leading-snug">{eng.sub}</span>
+                        <span className={`text-[11px] mt-0.5 leading-snug font-medium ${isSelected ? '!text-amber-900' : '!text-stone-500'}`}>{eng.sub}</span>
                       </button>
                     );
                   })}

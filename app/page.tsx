@@ -205,16 +205,19 @@ export default function Home() {
   };
 
   // 도서 목록 및 글로벌 타임라인 데이터 패치
-  const fetchBooks = async (targetClassId?: string, overrideRole?: string) => {
+  const fetchBooks = async (targetClassId?: string, overrideRole?: string, targetUser?: User | null) => {
     setLoading(true);
     try {
-      const activeRole = overrideRole || user?.role || 'student';
+      const activeUser = targetUser !== undefined ? targetUser : user;
+      const activeRole = overrideRole || activeUser?.role || 'student';
       let cId = '';
-      if (activeRole === 'student') {
-        cId = user?.classId || '';
+
+      if (targetClassId !== undefined) {
+        cId = targetClassId;
+      } else if (activeRole === 'student') {
+        cId = activeUser?.classId || '';
       } else {
-        // 교사는 명시적으로 전달된 classId가 있거나, 선택된 학급이 있으면 그 학급, 없으면 교사 모임('teachers')
-        cId = targetClassId !== undefined ? targetClassId : (currentClass?.id || 'teachers');
+        cId = currentClass?.id || 'teachers';
       }
 
       const params = new URLSearchParams();
@@ -234,14 +237,18 @@ export default function Home() {
     }
   };
 
-  const fetchGlobalTimeline = async (targetClassId?: string, overrideRole?: string) => {
+  const fetchGlobalTimeline = async (targetClassId?: string, overrideRole?: string, targetUser?: User | null) => {
     try {
-      const activeRole = overrideRole || user?.role || 'student';
+      const activeUser = targetUser !== undefined ? targetUser : user;
+      const activeRole = overrideRole || activeUser?.role || 'student';
       let cId = '';
-      if (activeRole === 'student') {
-        cId = user?.classId || '';
+
+      if (targetClassId !== undefined) {
+        cId = targetClassId;
+      } else if (activeRole === 'student') {
+        cId = activeUser?.classId || '';
       } else {
-        cId = targetClassId !== undefined ? targetClassId : (currentClass?.id || 'teachers');
+        cId = currentClass?.id || 'teachers';
       }
 
       const params = new URLSearchParams({ bookId: 'all' });
@@ -261,8 +268,16 @@ export default function Home() {
 
   useEffect(() => {
     if (hasEnteredLibrary) {
-      fetchBooks();
-      fetchGlobalTimeline();
+      let cachedUser: User | null = user;
+      if (!cachedUser) {
+        try {
+          const raw = localStorage.getItem('app_user');
+          if (raw) cachedUser = JSON.parse(raw);
+        } catch {}
+      }
+      const initialClassId = cachedUser?.classId || currentClass?.id || (cachedUser?.role === 'teacher' ? 'teachers' : '');
+      fetchBooks(initialClassId, cachedUser?.role, cachedUser);
+      fetchGlobalTimeline(initialClassId, cachedUser?.role, cachedUser);
     }
   }, [hasEnteredLibrary]);
 
@@ -917,6 +932,7 @@ export default function Home() {
     localStorage.setItem('app_nickname', authenticatedUser.nickname);
     localStorage.setItem('guest_entered', 'false');
 
+    const targetClassId = authenticatedUser.classId || '';
     if (authenticatedUser.classId) {
       const cls = {
         id: authenticatedUser.classId,
@@ -924,10 +940,13 @@ export default function Home() {
         code: authenticatedUser.classCode || '',
       };
       setCurrentClass(cls);
-      fetchBooks(cls.id);
-    } else {
-      fetchBooks();
+    } else if (authenticatedUser.role === 'teacher') {
+      setCurrentClass(null);
     }
+
+    // 로그인 직후 authenticatedUser와 targetClassId를 직접 전달하여 비동기 state 딜레이 없이 즉시 도서 및 피드 로딩!
+    fetchBooks(targetClassId, authenticatedUser.role, authenticatedUser);
+    fetchGlobalTimeline(targetClassId, authenticatedUser.role, authenticatedUser);
   };
 
   return (
