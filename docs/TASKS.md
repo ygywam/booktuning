@@ -179,3 +179,8 @@
 - [x] Google Gemini 402(선불 크레딧 소진) 에러 친절 가이드 제공: 원시 JSON 팝업 대신 무료 티어(Free Tier) 새 API 키 발급 및 Vercel 등록 방법을 명확히 안내
 - [x] LG EXAONE AI 안정성 보강: Vercel 서버리스 타임아웃 방지(`maxDuration = 60`), `max_tokens: 2048`, 미연결 시 경고 및 클릭 방어 로직 적용
 - [x] `v4.4.6` 버전 bump 및 동적 buildId(`build-v4.4.6-timestamp`) 적용 완료
+
+## 21단계: Gemini 3.8 Flash 공식 최신 표준 모델 적용 및 EXAONE 429 지수 백오프 자동 재시도 (완료)
+- [x] 구글 공식 신규 가성비 표준 모델 `gemini-3.8-flash` 확정 적용 (`lib/ai.ts`, `.env.example`): 구세대 2.5 폐지에 따른 404 원천 해결
+- [x] LG EXAONE 429 Too Many Requests 방어: 2초 지수 백오프 자동 재시도 탑재 및 무료 티어 호출 한도(RPM) 안내 메시지 고도화
+- [x] `v4.4.7` 버전 bump 및 동적 buildId(`build-v4.4.7-timestamp`) 적용 완료

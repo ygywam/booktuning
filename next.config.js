@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   generateBuildId: async () => {
-    return `build-v4.4.6-${Date.now()}`;
+    return `build-v4.4.7-${Date.now()}`;
   },
 };
 
