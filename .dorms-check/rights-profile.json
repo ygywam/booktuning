@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "2026-11-18.1",
+  "rightsholder": {
+    "status": "sole",
+    "displayName": "기록조율사 서울외고 조용희 (@record_tuner)",
+    "workForHireReview": "not_needed"
+  },
+  "audience": "anyone",
+  "permissions": {
+    "useAsIs": "allowed",
+    "shareOriginalLink": "allowed",
+    "shareLockedAccess": "permission_required",
+    "screenshotsWithAttribution": "allowed",
+    "modify": "permission_required",
+    "redistribute": "permission_required",
+    "commercialUse": "prohibited",
+    "uploadPrivateAssetsToAI": "prohibited",
+    "aiTrainingOrClone": "prohibited",
+    "shareDormsLink": "allowed",
+    "downloadPrint": "allowed",
+    "sourceReuse": "permission_required",
+    "research": "permission_required"
+  },
+  "attribution": {
+    "required": true,
+    "text": "만든이 기록조율사 서울외고 조용희 (@record_tuner)",
+    "method": "기록조율사 서울외고 조용희 (@record_tuner) · 도름스 (https://dorms.school/apps/5351efcf-f5ec-4367-8da7-3b3190da94a8)"
+  },
+  "protectedAssets": [
+    {
+      "label": "노션템플릿",
+      "kind": "data",
+      "location": "unknown"
+    },
+    {
+      "label": "DB관계형연동",
+      "kind": "logic",
+      "location": "unknown"
+    },
+    {
+      "label": "학급교사서재분리아이디어",
+      "kind": "design",
+      "location": "unknown"
+    }
+  ],
+  "appSpecificAcceptance": false,
+  "customClauses": [
+    "이미 공개 라이선스로 배포한 적이 있음(새 조건과의 충돌 검토 필요)"
+  ],
+  "legalReview": "not_done",
+  "preset": "edu_share",
+  "appName": "북튜닝 (Book Tuning)",
+  "dormsAppUrl": "https://dorms.school/apps/5351efcf-f5ec-4367-8da7-3b3190da94a8",
+  "provenance": {
+    "visibleFooter": false,
+    "allowUserFetchers": true
+  },
+  "userClauses": [
+    "학생 실명, 연락처 등 민감 개인정보는 입력하지 말고 닉네임으로 이용해주세요"
+  ]
+}

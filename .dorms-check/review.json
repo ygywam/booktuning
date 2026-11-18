@@ -1,0 +1,20 @@
+{
+  "protection.rights.third-party": {
+    "status": "pass",
+    "evidence": "설문: 외부 재료 있음 · 이용 조건 확인함",
+    "by": "interview",
+    "at": "2026-11-18T13:09:35.604Z"
+  },
+  "protection.rights.ai-contribution": {
+    "status": "pass",
+    "evidence": "설문: 직접 설계·작성한 부분이 구분됨",
+    "by": "interview",
+    "at": "2026-11-18T13:09:35.604Z"
+  },
+  "protection.rights.license-consistency": {
+    "status": "pending",
+    "evidence": "설문: 기존 공개 이력 있음 또는 불확실(충돌 검토 후 judge 로 기록)",
+    "by": "interview",
+    "at": "2026-11-18T13:09:35.604Z"
+  }
+}

@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-11-18T13:12:28.580Z",
+  "app": {
+    "name": null,
+    "url": null
+  },
+  "buildDir": ".next",
+  "rightsConfirmed": true,
+  "targets": [
+    {
+      "label": "노션템플릿",
+      "kind": "data",
+      "location": "unknown"
+    },
+    {
+      "label": "DB관계형연동",
+      "kind": "logic",
+      "location": "unknown"
+    },
+    {
+      "label": "학급교사서재분리아이디어",
+      "kind": "design",
+      "location": "unknown"
+    }
+  ],
+  "steps": [
+    {
+      "id": "sourcemap",
+      "title": "소스맵 제거",
+      "willChange": [],
+      "willCreate": [],
+      "warnings": []
+    },
+    {
+      "id": "notice",
+      "title": "권리·이용 고지(사람용 + 기계용)",
+      "willChange": [
+        ".next\\server\\pages\\404.html",
+        ".next\\server\\pages\\500.html",
+        ".next\\server\\app\\index.html",
+        ".next\\server\\app\\terms.html",
+        ".next\\server\\app\\_not-found.html"
+      ],
+      "willCreate": [
+        ".next\\llms.txt",
+        "public\\llms.txt"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "provenance",
+      "title": "출처 안내(베끼는 사람의 AI 가 읽는 자리)",
+      "willChange": [
+        ".next\\server\\chunks\\948.js",
+        ".next\\server\\chunks\\972.js",
+        ".next\\server\\chunks\\918.js",
+        ".next\\server\\chunks\\471.js",
+        ".next\\server\\chunks\\682.js",
+        ".next\\server\\chunks\\231.js",
+        ".next\\server\\pages\\_error.js",
+        ".next\\server\\pages\\_app.js",
+        ".next\\server\\pages\\_document.js",
+        ".next\\server\\app\\api\\users\\migrate\\route.js",
+        ".next\\server\\app\\api\\users\\route.js",
+        ".next\\server\\app\\api\\logs\\route.js",
+        ".next\\server\\app\\api\\ocr\\route.js",
+        ".next\\server\\app\\api\\my-report\\route.js",
+        ".next\\server\\app\\api\\books\\route.js",
+        ".next\\server\\app\\api\\timeline\\route.js",
+        ".next\\server\\app\\api\\ai-report\\route.js",
+        ".next\\server\\app\\api\\like\\route.js",
+        ".next\\server\\app\\api\\insights\\route.js",
+        ".next\\server\\app\\api\\search-books\\route.js",
+        ".next\\server\\app\\api\\ai-status\\route.js",
+        ".next\\server\\app\\api\\auth\\login\\route.js",
+        ".next\\server\\app\\api\\auth\\register\\route.js",
+        ".next\\server\\app\\api\\classes\\route.js",
+        ".next\\server\\app\\api\\classes\\reset-pin\\route.js",
+        ".next\\server\\app\\api\\classes\\students\\route.js",
+        ".next\\server\\app\\_not-found\\page.js",
+        ".next\\server\\app\\_not-found\\page_client-reference-manifest.js",
+        ".next\\server\\app\\icon.svg\\route.js",
+        ".next\\server\\app\\page.js",
+        ".next\\server\\app\\page_client-reference-manifest.js",
+        ".next\\server\\app\\terms\\page.js",
+        ".next\\server\\app\\terms\\page_client-reference-manifest.js",
+        ".next\\server\\webpack-runtime.js",
+        ".next\\server\\server-reference-manifest.js",
+        ".next\\server\\interception-route-rewrite-manifest.js",
+        ".next\\server\\middleware-build-manifest.js",
+        ".next\\server\\middleware-react-loadable-manifest.js",
+        ".next\\server\\next-font-manifest.js",
+        ".next\\static\\build-v4.5.0-1794999989998\\_buildManifest.js",
+        ".next\\static\\build-v4.5.0-1794999989998\\_ssgManifest.js",
+        ".next\\static\\chunks\\117-63f512de3129adce.js",
+        ".next\\static\\chunks\\275-effde7c64042d1e8.js",
+        ".next\\static\\chunks\\802-3c4d5424e3e27d3f.js",
+        ".next\\static\\chunks\\b536a0f1-c03f1562444ff3f8.js",
+        ".next\\static\\chunks\\bd904a5c-59726e9c8cecbf34.js",
+        ".next\\static\\chunks\\fd9d1056-f645e3cd7ccf8003.js",
+        ".next\\static\\chunks\\main-1e9f79b041f9cb56.js",
+        ".next\\static\\chunks\\main-app-b624cd52ad0cf96d.js",
+        ".next\\static\\chunks\\webpack-c8441f2d519541e3.js",
+        ".next\\static\\chunks\\app\\layout-05afd8178e14eba9.js",
+        ".next\\static\\chunks\\app\\page-dc50e30f2b15cb79.js",
+        ".next\\static\\chunks\\app\\terms\\page-7cd14f17826f3259.js",
+        ".next\\static\\chunks\\app\\_not-found\\page-ddd35de5a7d052bd.js",
+        ".next\\static\\chunks\\pages\\_app-72b849fbd24ac258.js",
+        ".next\\static\\chunks\\pages\\_error-7ba65e1336b92748.js",
+        ".next\\static\\css\\325e0e33086bd47d.css"
+      ],
+      "willCreate": [
+        ".next\\usage.html",
+        "public\\usage.html",
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".next\\dorms.json",
+        "dorms.json",
+        "public\\dorms.json"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "legal",
+      "title": "기계용 안내(robots·TDM)·라이선스·무결성 기록",
+      "willChange": [],
+      "willCreate": [
+        ".next\\robots.txt",
+        "public\\robots.txt",
+        ".next\\.well-known\\tdmrep.json",
+        "public\\.well-known\\tdmrep.json",
+        "LICENSE"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "evidence",
+      "title": "증거팩 생성(해시 지문·만든 기록)",
+      "willChange": [],
+      "willCreate": [
+        ".dorms-check\\protect\\evidence\\MANIFEST.json",
+        ".dorms-check\\protect\\evidence\\git.txt",
+        ".dorms-check\\protect\\evidence\\README.md"
+      ],
+      "warnings": []
+    }
+  ],
+  "serverMoveCandidates": [],
+  "risks": [
+    "빌드 산출물의 HTML·JS 를 수정하므로, 적용 후 반드시 verify 로 깨짐을 확인해야 합니다.",
+    "빌드 결과에 넣은 것(JS·CSS 머리 주석 등)은 다시 빌드하면 사라집니다. public/ 과 HTML 원본(index.html 등)에 넣은 안내는 남으니, 그 파일들을 저장소에 함께 올리고 배포 뒤 verify --url <운영 주소> 로 확인하세요.",
+    "robots.txt 차단·고지는 지키지 않는 수집기에게는 효력이 없습니다(완전 보호 아님).",
+    "출처 안내는 빌드 결과 말고도 프로젝트 맨 위 AGENTS.md·CLAUDE.md·dorms.json, public/ 폴더(usage.html·llms.txt·robots.txt·dorms.json·.well-known/tdmrep.json), HTML 원본(index.html·public/index.html·src/app.html 중 있는 것)을 만들거나 고칩니다(표식 사이만 바꾸고 선생님 내용은 보존).",
+    "화면 맨 아래에 작은 출처 줄이 보입니다. 원하지 않으면 interview 에서 끄거나 설정 protection.provenance.visibleFooter 를 false 로 두세요."
+  ],
+  "restore": {
+    "method": "dcheck protect restore (마지막 백업으로 복원)",
+    "backupBase": ".dorms-check/backup/",
+    "note": "적용 직전 원본이 자동 백업되며, 단계 실패 시에는 즉시 자동 복원됩니다."
+  },
+  "planSha256": "a491dce0a616da9719556212b5a75526c84496bdfc699721f1042e8a15167c43"
+}

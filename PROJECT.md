@@ -48,3 +48,4 @@
 - [x] Gemini 503(일시적 과부하) 자동 재시도 및 gemini-3.7-flash 자동 폴백 체인 구축 확인
 - [x] Gemini 3.7 Flash 우선 가동 및 504 타임아웃 방어·프론트엔드 안전 파싱(Unexpected token 방어) 확인
 - [x] AI 감상문 탭 및 EXAONE 전면 제거, 나만의 감상문 직접 작성 체계 확립, Google Gemini 책 사진 비전 OCR 단일화 및 문서·안내 전면 동기화 확인
+- [x] 보안 헤더(X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy), 메타 태그(canonical, OpenGraph), 독립 서비스 이용약관(/terms) 분리 확인

@@ -1,0 +1,12 @@
+HEAD: e43f12f2e2d506c1f8d759e938e0c801dcc1c735
+
+e43f12f 2026-11-15 01:10:36 +0900 feat(v4.5.0): remove AI report & EXAONE, streamline to self-written book report, retain Google Gemini Vision OCR, and update all guides
+44092e4 2026-11-15 00:29:43 +0900 feat(v4.4.9): set gemini-3.7-flash as primary model and add fast zero-wait fallback and rawText safe parsing
+d6b3b66 2026-11-15 00:17:23 +0900 feat(v4.4.8): handle gemini 503 high demand with exponential backoff and automatic model fallback chain
+2857eff 2026-11-15 00:06:06 +0900 feat(v4.4.7): update default model to gemini-3.8-flash and add exaone 429 exponential backoff retry
+8ca0509 2026-11-14 22:40:20 +0900 fix(v4.4.6): restore book edit/delete modal, add teacher manage permissions, handle gemini 402 free tier guide, add exaone safety guards
+18c134a 2026-11-14 22:10:41 +0900 fix: 설정 모달 고대비 색상 개선·로그인 즉시 도서 및 피드 렌더링 보장(v4.4.5)
+7297c3c 2026-11-14 19:57:56 +0900 fix: 학생 설정 노션 링크 차단·AI 설명 문구 삭제·Gemini 2.5 Flash 가성비 모델 확정(v4.4.4)
+b14f456 2026-11-14 19:50:06 +0900 feat: 피드 학급격리·도서 및 피드 공감(좋아요) 양방향 복원·노션 연동(v4.4.3)
+eaf30a4 2026-11-14 19:03:41 +0900 fix: 헤더 프로필버튼 제거·학급관리 버튼시인성/자동닫힘·도서등록 classId 누락 수정·교사모임 학생도서 완전분리·모바일 3대탭/날짜입력창 최적화(v4.4.2)
+9a706ab 2026-11-14 18:34:14 +0900 feat: 학생 서재 교사도서 격리·교사 독서모임 및 학급지도 듀얼서재 전환·캐시무효화(v4.4.1)

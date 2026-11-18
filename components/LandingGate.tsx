@@ -417,6 +417,15 @@ export function LandingGate({
           만든이. 기록조율사 서울외고 조용희 @record_tuner
         </div>
         <div className="flex items-center justify-center gap-3 pt-1">
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noreferrer"
+            className="!bg-transparent !p-0 !text-white/70 hover:!text-white underline text-xs cursor-pointer border-0"
+          >
+            서비스 이용약관
+          </a>
+          <span className="text-white/30">·</span>
           <button
             type="button"
             onClick={onOpenPrivacy}

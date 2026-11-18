@@ -1266,6 +1266,15 @@ export default function Home() {
               </a>
             </p>
             <div className="flex justify-center gap-4 text-xs text-stone-400">
+              <a
+                href="/terms"
+                target="_blank"
+                rel="noreferrer"
+                className="text-stone-500 hover:underline"
+              >
+                서비스 이용약관
+              </a>
+              <span>|</span>
               <button
                 type="button"
                 className="bg-transparent border-0 p-0 text-stone-500 hover:underline"

@@ -1,0 +1,38 @@
+{
+  "owner": "sole",
+  "schoolInvolved": "no",
+  "displayName": "기록조율사 서울외고 조용희 (@record_tuner)",
+  "existingLicense": "open",
+  "thirdPartyAssets": "licensed",
+  "aiContribution": "distinguishable",
+  "protectedAssets": [
+    {
+      "label": "노션템플릿",
+      "kind": "data",
+      "location": "unknown"
+    },
+    {
+      "label": "DB관계형연동",
+      "kind": "logic",
+      "location": "unknown"
+    },
+    {
+      "label": "학급교사서재분리아이디어",
+      "kind": "design",
+      "location": "unknown"
+    }
+  ],
+  "audience": "anyone",
+  "shareLevel": "open",
+  "aiTraining": "prohibited",
+  "appName": "북튜닝 (Book Tuning)",
+  "dormsAppUrl": "https://dorms.school/apps/5351efcf-f5ec-4367-8da7-3b3190da94a8",
+  "preset": "edu_share",
+  "attributionRequired": "yes",
+  "attributionMethod": "기록조율사 서울외고 조용희 (@record_tuner) · 도름스 (https://dorms.school/apps/5351efcf-f5ec-4367-8da7-3b3190da94a8)",
+  "customClauses": [
+    "학생 실명, 연락처 등 민감 개인정보는 입력하지 말고 닉네임으로 이용해주세요"
+  ],
+  "visibleFooter": "no",
+  "userFetchers": "allow"
+}

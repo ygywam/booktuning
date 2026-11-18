@@ -205,3 +205,12 @@
 - [x] 서재 환경 설정 모달 내 'AI 엔진 선택 (감상문 & OCR)' 섹션 완전 제거 (Google Gemini OCR 단독 고정)
 - [x] 사용법 튜토리얼(`SpotlightTutorial.tsx`), 개인정보처리방침, 저작권 및 레퍼런스(`AppInfoModals.tsx`), `README.md`, `.env.example` 등 전반의 AI 감상문/EXAONE 안내를 나만의 감상문 직접 작성 및 책 사진 비전 OCR로 갱신
 - [x] `v4.5.0` 버전 bump, 동적 buildId(`build-v4.5.0-timestamp`) 갱신 및 프로덕션 빌드 무결성 검증 완료
+
+## 25단계: dorms-check 보안 권고사항 반영 및 protection 보호 축 적용 완료
+- [x] `next.config.js` 표준 HTTP 보안 헤더 탑재 (`X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, `X-DNS-Prefetch-Control`)
+- [x] `app/layout.tsx` SEO 및 출처 메타 태그 보강 (`metadataBase`, `canonical`, `openGraph`, `twitter`)
+- [x] 독립된 서비스 이용약관 페이지(`app/terms/page.tsx`) 신설 및 입장 화면(`LandingGate.tsx`)·메인 서재 푸터(`app/page.tsx`) 링크 연결
+- [x] `dorms-check` 보호 축(`protection`) 인터뷰 진행 및 권리 프로필(`.dorms-check/rights-profile.json`) 생성
+- [x] 보호 계획(`protect plan`) 수립 및 정규화 해시 검증
+- [x] `protect apply`로 권리·이용 고지(`public/llms.txt`), 출처 안내(`public/usage.html`, `AGENTS.md`, `CLAUDE.md`, `dorms.json`), 기계용 robots(`public/robots.txt`, `.well-known/tdmrep.json`), 독점 라이선스(`LICENSE`), 증거팩 매니페스트 생성 및 산출물 주입 완료
+- [x] `protect verify` 정적 무손상 검증 완료 (오류 0건 무결성 유지)

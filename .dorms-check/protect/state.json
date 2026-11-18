@@ -1,0 +1,20 @@
+{
+  "baseline": {
+    "at": "2026-11-18T13:15:25.470Z",
+    "buildDir": ".next",
+    "errors": 0,
+    "warnings": 62
+  },
+  "lastApply": {
+    "at": "2026-11-18T13:16:03.681Z",
+    "buildDir": ".next",
+    "backupDir": ".dorms-check\\backup\\2026-11-18T13-15-25-772Z",
+    "planSha256": "a491dce0a616da9719556212b5a75526c84496bdfc699721f1042e8a15167c43"
+  },
+  "lastVerify": {
+    "at": "2026-11-18T13:17:06.029Z",
+    "buildDir": ".next",
+    "errors": 0,
+    "warnings": 67
+  }
+}
