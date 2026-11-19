@@ -3,18 +3,20 @@ import Link from 'next/link';
 import { ArrowLeft, BookOpen, ShieldCheck } from 'lucide-react';
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: '서비스 이용약관 - 북튜닝 (Book Tuning)',
-  description: '북튜닝 독서 기록 웹앱의 서비스 이용약관 안내입니다.',
-  alternates: {
-    canonical: '/terms',
-  },
-};
+const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME?.trim() || '';
+const serviceName = schoolName ? `${schoolName} 북튜닝` : '북튜닝 (Book Tuning)';
+
+export function generateMetadata(): Metadata {
+  return {
+    title: `서비스 이용약관 - ${serviceName}`,
+    description: `${serviceName} 독서 기록 웹앱의 서비스 이용약관 안내입니다.`,
+    alternates: {
+      canonical: '/terms',
+    },
+  };
+}
 
 export default function TermsPage() {
-  const schoolName = process.env.NEXT_PUBLIC_SCHOOL_NAME?.trim() || '';
-  const serviceName = schoolName ? `${schoolName} 북튜닝` : '북튜닝 (Book Tuning)';
-
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border border-stone-200 p-6 sm:p-10">

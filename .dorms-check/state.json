@@ -16,6 +16,22 @@
         },
         "blocking": []
       }
+    },
+    {
+      "n": 2,
+      "at": "2026-11-18T13:54:22.241Z",
+      "security": {
+        "score": null,
+        "grade": null,
+        "eligible": true,
+        "outcome": "eligible",
+        "coverage": {
+          "checked": 31,
+          "unverified": 5,
+          "notApplicable": 5
+        },
+        "blocking": []
+      }
     }
   ],
   "items": {
@@ -38,27 +54,27 @@
       "regressed": false
     },
     "sec.header.frame": {
-      "status": "info",
+      "status": "pass",
       "firstFailRound": null,
-      "fixedRound": null,
+      "fixedRound": 2,
       "regressed": false
     },
     "sec.header.nosniff": {
-      "status": "info",
+      "status": "pass",
       "firstFailRound": null,
-      "fixedRound": null,
+      "fixedRound": 2,
       "regressed": false
     },
     "sec.header.referrer": {
-      "status": "info",
+      "status": "pass",
       "firstFailRound": null,
-      "fixedRound": null,
+      "fixedRound": 2,
       "regressed": false
     },
     "sec.header.permissions": {
-      "status": "info",
+      "status": "pass",
       "firstFailRound": null,
-      "fixedRound": null,
+      "fixedRound": 2,
       "regressed": false
     },
     "sec.fingerprint.powered-by": {
@@ -92,15 +108,15 @@
       "regressed": false
     },
     "info.secret-exposed": {
-      "status": "unknown",
+      "status": "pass",
       "firstFailRound": null,
-      "fixedRound": null,
+      "fixedRound": 2,
       "regressed": false
     },
     "info.config-exposed": {
-      "status": "unknown",
+      "status": "pass",
       "firstFailRound": null,
-      "fixedRound": null,
+      "fixedRound": 2,
       "regressed": false
     },
     "info.source-map": {
@@ -134,9 +150,9 @@
       "regressed": false
     },
     "legal.terms": {
-      "status": "info",
+      "status": "pass",
       "firstFailRound": null,
-      "fixedRound": null,
+      "fixedRound": 2,
       "regressed": false
     },
     "legal.contact": {
@@ -164,15 +180,15 @@
       "regressed": false
     },
     "seo.og": {
-      "status": "info",
+      "status": "pass",
       "firstFailRound": null,
-      "fixedRound": null,
+      "fixedRound": 2,
       "regressed": false
     },
     "seo.canonical": {
-      "status": "info",
+      "status": "pass",
       "firstFailRound": null,
-      "fixedRound": null,
+      "fixedRound": 2,
       "regressed": false
     },
     "perf.ttfb": {
@@ -261,6 +277,24 @@
     },
     "ops.school-selfcheck": {
       "status": "info",
+      "firstFailRound": null,
+      "fixedRound": null,
+      "regressed": false
+    },
+    "protection.rights.third-party": {
+      "status": "pass",
+      "firstFailRound": null,
+      "fixedRound": null,
+      "regressed": false
+    },
+    "protection.rights.ai-contribution": {
+      "status": "pass",
+      "firstFailRound": null,
+      "fixedRound": null,
+      "regressed": false
+    },
+    "protection.rights.license-consistency": {
+      "status": "unknown",
       "firstFailRound": null,
       "fixedRound": null,
       "regressed": false
